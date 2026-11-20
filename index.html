@@ -547,11 +547,11 @@
             <button type="button" class="ktype-card" data-value="L+Island" aria-pressed="false"><svg viewBox="0 0 48 36" aria-hidden="true"><path class="kw" d="M4 7H44V31"/><rect class="kb1" x="6" y="9" width="11" height="7" rx="1.5"/><rect class="kb2" x="18.5" y="9" width="11" height="7" rx="1.5"/><rect class="kb1" x="31" y="9" width="11" height="7" rx="1.5"/><rect class="kb2" x="35" y="17.5" width="7" height="11" rx="1.5"/><rect class="kb1" x="10" y="23" width="16" height="7" rx="1.5"/></svg><span>L-Shape + Island</span></button>
         </div>
         <div class="measure" id="island-row" hidden style="margin-top: 16px; margin-bottom: 0;">
-          <span class="field-label" id="lbl-island">Island length</span>
+          <span class="field-label" id="lbl-island">Island length (in)</span>
           <div class="stepper">
-            <button type="button" data-step="-1" data-target="in-island" aria-label="Decrease island feet">−</button>
-            <input type="number" id="in-island" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-island" />
-            <button type="button" data-step="1" data-target="in-island" aria-label="Increase island feet">+</button>
+            <button type="button" data-step="-3" data-int="1" data-target="in-island" aria-label="Decrease island inches">−</button>
+            <input type="number" id="in-island" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-island" />
+            <button type="button" data-step="3" data-int="1" data-target="in-island" aria-label="Increase island inches">+</button>
           </div>
         </div>
       </section>
@@ -569,30 +569,30 @@
       </section>
 
       <section class="card" aria-labelledby="h-measure">
-        <h2 id="h-measure">Measurements (linear feet)</h2>
+        <h2 id="h-measure">Measurements (inches)</h2>
         <div id="legs-block" hidden>
           <div class="measure">
-            <span class="field-label" id="lbl-legA">Wall A (ft)</span>
+            <span class="field-label" id="lbl-legA">Wall A (in)</span>
             <div class="stepper">
-              <button type="button" data-step="-1" data-target="in-legA" aria-label="Decrease wall A feet">−</button>
-              <input type="number" id="in-legA" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-legA" />
-              <button type="button" data-step="1" data-target="in-legA" aria-label="Increase wall A feet">+</button>
+              <button type="button" data-step="-3" data-int="1" data-target="in-legA" aria-label="Decrease wall A inches">−</button>
+              <input type="number" id="in-legA" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-legA" />
+              <button type="button" data-step="3" data-int="1" data-target="in-legA" aria-label="Increase wall A inches">+</button>
             </div>
           </div>
           <div class="measure">
-            <span class="field-label" id="lbl-legB">Wall B (ft)</span>
+            <span class="field-label" id="lbl-legB">Wall B (in)</span>
             <div class="stepper">
-              <button type="button" data-step="-1" data-target="in-legB" aria-label="Decrease wall B feet">−</button>
-              <input type="number" id="in-legB" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-legB" />
-              <button type="button" data-step="1" data-target="in-legB" aria-label="Increase wall B feet">+</button>
+              <button type="button" data-step="-3" data-int="1" data-target="in-legB" aria-label="Decrease wall B inches">−</button>
+              <input type="number" id="in-legB" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-legB" />
+              <button type="button" data-step="3" data-int="1" data-target="in-legB" aria-label="Increase wall B inches">+</button>
             </div>
           </div>
           <div class="measure" id="legC-row" hidden>
-            <span class="field-label" id="lbl-legC">Wall C (ft)</span>
+            <span class="field-label" id="lbl-legC">Wall C (in)</span>
             <div class="stepper">
-              <button type="button" data-step="-1" data-target="in-legC" aria-label="Decrease wall C feet">−</button>
-              <input type="number" id="in-legC" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-legC" />
-              <button type="button" data-step="1" data-target="in-legC" aria-label="Increase wall C feet">+</button>
+              <button type="button" data-step="-3" data-int="1" data-target="in-legC" aria-label="Decrease wall C inches">−</button>
+              <input type="number" id="in-legC" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-legC" />
+              <button type="button" data-step="3" data-int="1" data-target="in-legC" aria-label="Increase wall C inches">+</button>
             </div>
           </div>
           <p class="seg-note" style="margin: -6px 0 14px;">One length per wall — it drives both the base and the wall cabinets on that leg. L: A = sink wall, B = side leg. Galley: A = sink run, B = range run. U: B = back wall, A = left leg, C = right leg.</p>
@@ -600,20 +600,20 @@
 
 
         <div class="measure" id="measure-base">
-          <span class="field-label" id="lbl-base">Base cabinets</span>
+          <span class="field-label" id="lbl-base">Base cabinets (in)</span>
           <div class="stepper">
-            <button type="button" data-step="-1" data-target="in-base" aria-label="Decrease base feet">−</button>
-            <input type="number" id="in-base" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-base" />
-            <button type="button" data-step="1" data-target="in-base" aria-label="Increase base feet">+</button>
+            <button type="button" data-step="-3" data-int="1" data-target="in-base" aria-label="Decrease base inches">−</button>
+            <input type="number" id="in-base" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-base" />
+            <button type="button" data-step="3" data-int="1" data-target="in-base" aria-label="Increase base inches">+</button>
           </div>
         </div>
 
         <div class="measure" id="measure-wall">
-          <span class="field-label" id="lbl-wall">Wall cabinets</span>
+          <span class="field-label" id="lbl-wall">Wall cabinets (in)</span>
           <div class="stepper">
-            <button type="button" data-step="-1" data-target="in-wall" aria-label="Decrease wall feet">−</button>
-            <input type="number" id="in-wall" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-wall" />
-            <button type="button" data-step="1" data-target="in-wall" aria-label="Increase wall feet">+</button>
+            <button type="button" data-step="-3" data-int="1" data-target="in-wall" aria-label="Decrease wall inches">−</button>
+            <input type="number" id="in-wall" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-wall" />
+            <button type="button" data-step="3" data-int="1" data-target="in-wall" aria-label="Increase wall inches">+</button>
           </div>
           <div class="sub-field">
             <span class="field-label" id="lbl-wallh">Wall height</span>
@@ -639,11 +639,11 @@
         </div>
 
         <div class="measure">
-          <span class="field-label" id="lbl-tall">Tall cabinets</span>
+          <span class="field-label" id="lbl-tall">Tall cabinets (in)</span>
           <div class="stepper">
-            <button type="button" data-step="-1" data-target="in-tall" aria-label="Decrease tall feet">−</button>
-            <input type="number" id="in-tall" placeholder="0" min="0" max="30" step="0.5" inputmode="decimal" aria-labelledby="lbl-tall" />
-            <button type="button" data-step="1" data-target="in-tall" aria-label="Increase tall feet">+</button>
+            <button type="button" data-step="-3" data-int="1" data-target="in-tall" aria-label="Decrease tall inches">−</button>
+            <input type="number" id="in-tall" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-tall" />
+            <button type="button" data-step="3" data-int="1" data-target="in-tall" aria-label="Increase tall inches">+</button>
           </div>
           <div class="sub-field">
             <span class="field-label" id="lbl-tallh">Tall height</span>
@@ -1975,11 +1975,11 @@
         var wrap = $("plan-wrap");
         if (!wrap) return;
         updateSiteNotes();
-        if (!r) { wrap.innerHTML = '<p class="plan-empty">Enter the base feet to see the 2D design</p>'; planState = {}; updateChips(); return; }
+        if (!r) { wrap.innerHTML = '<p class="plan-empty">Enter the base length to see the 2D design</p>'; planState = {}; updateChips(); return; }
         var anyFt = false;
         (r.planLegs || []).forEach(function (l) { if (l.ft > 0) anyFt = true; });
         if (!anyFt && r.tallL <= 0) {
-          wrap.innerHTML = '<p class="plan-empty">Enter the base feet to see the 2D design</p>';
+          wrap.innerHTML = '<p class="plan-empty">Enter the base length to see the 2D design</p>';
           planState = {}; lastPlan = null; updateChips(); return;
         }
         var scene = buildScene(r);
@@ -2152,7 +2152,11 @@
         var accLow = accFor(line, box, lowers);
         var accUp = accFor(line, box, uppers);
 
-        var baseL = Math.min(num("in-base"), 30), wallL = Math.min(num("in-wall"), 30), tallL = Math.min(num("in-tall"), 30);
+        /* All length inputs are entered in INCHES (cap 360in); they are
+           converted to feet here so every downstream design, plan and
+           pricing calculation is identical to the feet version
+           (120in entered = the old 10 ft, exactly). */
+        var baseL = Math.min(num("in-base"), 360) / 12, wallL = Math.min(num("in-wall"), 360) / 12, tallL = Math.min(num("in-tall"), 360) / 12;
         var wallH = state.wallH, tallH = state.tallH;
 
         var cornerOn = state.corner === "Yes";
@@ -2167,7 +2171,7 @@
         var dwUnits = state.dish === "Yes" ? 8 : 0;
         var cooktop = state.cooking === "Cooktop";
         var ctSku = line === "GOLA" ? "2DB30" : "3DB30";
-        var legAft = Math.min(num("in-legA"), 30), legBft = Math.min(num("in-legB"), 30), legCft = Math.min(num("in-legC"), 30);
+        var legAft = Math.min(num("in-legA"), 360) / 12, legBft = Math.min(num("in-legB"), 360) / 12, legCft = Math.min(num("in-legC"), 360) / 12;
         function clampU(u) { u = Math.round(u); if (isNaN(u) || u < 0) u = 0; if (u > DESIGN.maxUnits) u = DESIGN.maxUnits; return u; }
         function legList(series, u) { return designList(line, series, clampU(u)).slice(); }
         function withCT(list) { if (!cooktop) return list; var c = list.slice(); c.splice(Math.floor(c.length / 2), 0, ctSku); return c; }
@@ -2211,6 +2215,105 @@
           else out.unshift("DW");
           return out;
         }
+        /* ---- Drawer base beside the stove (best effort) ----
+           STOVE case only (cooktop is unchanged): the kitchen's ONE
+           drawer base belongs immediately beside the range, on the leg
+           or run where the range is — the side away from the corner
+           preferred, the corner side when that is the only side with
+           room. Its width follows the space beside the range: 18, 21
+           or 24in (3DB on Regular, 2DB on GOLA). The leg that would
+           otherwise carry it in the standard pattern composes that
+           width as a regular full-height cabinet instead, so there is
+           still exactly one drawer base, and the price and the design
+           text follow where it is actually drawn. Every move preserves
+           each leg's total width, so the mandatory sink / dishwasher /
+           window / corner composition and the too-tight feasibility
+           are untouched. If the range leg has no composable cabinet
+           beside the range, the standard pattern is left alone. */
+        var dbPre = line === "GOLA" ? "2DB" : "3DB";
+        function isDb(sku) { return sku === dbPre + "18" || sku === dbPre + "21" || sku === dbPre + "24"; }
+        function fillPosOf(list) {
+          var pos = [];
+          for (var i = 0; i < list.length; i++) {
+            var s = list[i];
+            if (/^SB/.test(s) || /^(BBC|BLS|BER)/.test(s) || s === ctSku) continue;
+            pos.push(i);
+          }
+          return pos;
+        }
+        function writeFills(list, fills) {
+          var pos = fillPosOf(list);
+          if (!pos.length) return;
+          if (fills.length === pos.length) { for (var k = 0; k < pos.length; k++) list[pos[k]] = fills[k]; return; }
+          var pre = list.slice(0, pos[0]), post = list.slice(pos[pos.length - 1] + 1), mid = [];
+          for (var i = pos[0]; i <= pos[pos.length - 1]; i++) if (pos.indexOf(i) === -1) mid.push(list[i]);
+          var nl = pre.concat(fills, mid, post);
+          list.length = 0;
+          for (var j = 0; j < nl.length; j++) list.push(nl[j]);
+        }
+        function stripDb(list) {
+          /* The standard pattern's drawer base becomes a regular
+             full-height cabinet of the same width on this leg. */
+          for (var i = 0; i < list.length; i++) if (isDb(list[i])) { list[i] = "B" + skuW(list[i]) + "FH"; return true; }
+          return false;
+        }
+        function dbBesideRange(list, target) {
+          /* Ensure the leg's fill sequence carries exactly one drawer
+             base at fills-index `target` — the slot the plan draws
+             immediately beside the range. Returns false when the leg
+             has no composable cabinet beside the range. */
+          var pos = fillPosOf(list);
+          if (!pos.length) return false;
+          var fills = pos.map(function (ix) { return list[ix]; });
+          if (target > fills.length - 1) target = fills.length - 1;
+          if (target < 0) target = 0;
+          var di = -1, i, j;
+          for (i = 0; i < fills.length; i++) if (isDb(fills[i])) { di = i; break; }
+          if (di >= 0) {
+            /* Width flexibility: swap widths with the widest wider
+               full-height fill (21/24) so the drawer uses the best
+               space the leg offers. */
+            var dw = skuW(fills[di]), best = -1;
+            for (j = 0; j < fills.length; j++) {
+              var mw = /^B(21|24)FH$/.exec(fills[j]);
+              if (mw && parseInt(mw[1], 10) > dw && (best < 0 || skuW(fills[best]) < parseInt(mw[1], 10))) best = j;
+            }
+            if (best >= 0) { var bw = skuW(fills[best]); fills[best] = "B" + dw + "FH"; fills[di] = dbPre + bw; }
+            var dsku = fills.splice(di, 1)[0];
+            fills.splice(target, 0, dsku);
+          } else {
+            var cand = -1, tries = [target, target - 1, target + 1];
+            for (i = 0; i < tries.length && cand < 0; i++) {
+              j = tries[i];
+              if (j >= 0 && j < fills.length && /^B(18|21|24)(FH)?$/.test(fills[j])) cand = j;
+            }
+            if (cand < 0) for (j = 0; j < fills.length; j++) if (/^B(18|21|24)(FH)?$/.test(fills[j])) { cand = j; break; }
+            if (cand >= 0) {
+              fills[cand] = dbPre + skuW(fills[cand]);
+              var mv = fills.splice(cand, 1)[0];
+              fills.splice(target, 0, mv);
+            } else {
+              /* No 18/21/24 cabinet to convert: split a wide fill into
+                 drawer + full-height remainder (both real sizes). */
+              var split = -1, sdw = 0;
+              for (j = 0; j < fills.length; j++) {
+                var w = skuW(fills[j]);
+                if (/^B\d+(FH)?$/.test(fills[j]) && w >= 30) {
+                  var opts = [24, 21, 18], pick = 0;
+                  for (var q = 0; q < opts.length; q++) if (w - opts[q] >= 12) { pick = opts[q]; break; }
+                  if (pick) { split = j; sdw = pick; break; }
+                }
+              }
+              if (split < 0) return false;
+              var sw = skuW(fills[split]);
+              fills.splice(split, 1, dbPre + sdw, "B" + (sw - sdw) + "FH");
+              var mv2 = fills.splice(split, 1)[0];
+              fills.splice(target, 0, mv2);
+            }
+          }
+          writeFills(list, fills);
+          return true;
+        }
         var dwWrapToB = false, baseFlipL = false, upperFlipL = false;
 
         var baseList = [], wallList = [];
@@ -2233,6 +2336,16 @@
             baseList = composeSinkBase(baseL * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 30 });
             if (cooktop) baseList = withCT(baseList);
           }
+          if (!cooktop) {
+            /* Single run: the plan draws the first ceil(n/3) fills
+               before the range and the next fill immediately after it —
+               that after-range slot is where the drawer base belongs. */
+            var posS = fillPosOf(baseList);
+            if (posS.length) {
+              var k1S = Math.ceil(posS.length / 3);
+              dbBesideRange(baseList, k1S < posS.length ? k1S : posS.length - 1);
+            }
+          }
           wallList = legList("wall" + wallH + "F" + state.fridge, unitsFor(wallL) - winUnits);
           effBaseUnitsTotal = effB;
           denomFt = baseL + tallL;
@@ -2249,6 +2362,10 @@
             bA2 = legList("base", Au - fridgeUnits - dwUnits);
             if (!hasSink(bA2)) bA2 = composeSinkBase(legAft * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 0 });
             bB2 = withCT(legList("baseFill", Bu - 10));
+            /* Range run is drawn range-first: fills[0] sits immediately
+               beside the range. Move the drawer base there; the sink
+               run's standard drawer becomes a full-height cabinet. */
+            if (!cooktop && dbBesideRange(bB2, 0)) stripDb(bA2);
             wA2 = legList("wallFill" + wallH, Au - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
             wB2 = legList("wallFill" + wallH, Bu); if (legBft > 0) wB2.push("W3018");
             effA2 = clampU(Au - fridgeUnits - dwUnits); effB2 = clampU(Bu - 10);
@@ -2296,6 +2413,11 @@
             var bBfillIn2 = Math.floor((lenBin2 - footB2 - 30 - (dwWrapToB ? dwIn2 : 0)) / 3) * 3;
             bB2 = withCT(fillForIn(bBfillIn2));
             if (baseFlipL) bB2 = [cbSku2].concat(bB2);
+            /* Range leg B is drawn corner → fills[0] → range → fills[1]:
+               fills[1] is the away-from-corner side of the range, where
+               the drawer base belongs (fills[0] when it is the only
+               fill). Leg A's standard drawer becomes full-height. */
+            if (!cooktop && dbBesideRange(bB2, fillPosOf(bB2).length >= 2 ? 1 : 0)) stripDb(bA2);
             if (upperFlipL) {
               wA2 = legList("wallFill" + wallH, Math.floor((lenAin2 - ucOnB2) / 3) - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
               var wBfillU2 = Math.floor((lenBin2 - ucOnA2) / 3);
@@ -2338,6 +2460,10 @@
           var wCunits3 = Math.floor((legCft * 12 - upFootIn3) / 3);
           var bA3 = legList("baseFill", bAunits3);
           var bC3 = withCT(legList("baseFill", bCunits3));
+          /* Range leg C is drawn like leg B of an L: fills[1] is the
+             away-from-corner side of the range. The sink leg's (and
+             leg A's) standard drawer becomes full-height. */
+          if (!cooktop && dbBesideRange(bC3, fillPosOf(bC3).length >= 2 ? 1 : 0)) { stripDb(bB3); stripDb(bA3); }
           var fridgeCabSku = "W" + state.fridge + (wallH === "30" ? "15" : wallH === "36" ? "18" : "24") + "24";
           var wB3 = legList("wallFill" + wallH + "2C" + state.upperCorner, Bu3 - winUnits);
           var wA3 = legList("wallFill" + wallH, wAunits3); if (legAft > 0) wA3.push(fridgeCabSku);
@@ -2351,7 +2477,7 @@
           wallDesignStr = legDesignStr([["A", wA3], ["B", wB3], ["C", wC3]]);
         }
         if (islandOn) {
-          islandFt = Math.min(num("in-island"), 30);
+          islandFt = Math.min(num("in-island"), 360) / 12;
           islandList = legList("baseFill", unitsFor(islandFt));
           denomFt += islandFt;
         }
@@ -2561,17 +2687,17 @@
         if (r.tkPcs > 0) {
           baseDetail += " + " + r.tkPcs + "\u00D7 TK8 " + money(r.accLow.tk8) + " toe kick";
         }
-        baseDetail += " \u00B7 " + ft(r.baseL) + " ft \u00B7 " + r.lowers + " / " + r.box;
+        baseDetail += " \u00B7 " + Math.round(r.baseL * 12) + " in \u00B7 " + r.lowers + " / " + r.box;
         rows.push(["Base cabinets (incl. toe kick)", baseDetail, money(r.baseAmt), ""]);
         rows.push(["Wall cabinets " + r.wallH + "\u2033",
-          (r.wallDesign ? r.wallDesign : "No cabinets for this run") + " \u00B7 " + ft(r.wallL) + " ft \u00B7 " + r.uppers,
+          (r.wallDesign ? r.wallDesign : "No cabinets for this run") + " \u00B7 " + Math.round(r.wallL * 12) + " in \u00B7 " + r.uppers,
           money(r.wallAmt), ""]);
         rows.push(["Tall cabinets " + r.tallH + "\u2033",
-          (r.tallDesign ? r.tallDesign : "No cabinets for this run") + " \u00B7 " + ft(r.tallL) + " ft \u00B7 " + r.lowers,
+          (r.tallDesign ? r.tallDesign : "No cabinets for this run") + " \u00B7 " + Math.round(r.tallL * 12) + " in \u00B7 " + r.lowers,
           money(r.tallAmt), ""]);
         if (r.islandOn) {
           rows.push(["Island cabinets",
-            (r.islandDesign ? r.islandDesign : "No cabinets for this run") + " \u00B7 " + ft(r.islandFt) + " ft \u00B7 " + r.lowers,
+            (r.islandDesign ? r.islandDesign : "No cabinets for this run") + " \u00B7 " + Math.round(r.islandFt * 12) + " in \u00B7 " + r.lowers,
             money(r.islandAmt), ""]);
         }
         if (state.crown === "Yes") {
