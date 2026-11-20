@@ -489,6 +489,10 @@
          frosted item markers seated inside the strip. Flow: pick an
          item, pick its wall, then see it in the layout underneath. */
       .place-map-wrap { margin: 0 0 14px; }
+      /* The mini layout is the LAST block in the Measurements card —
+         every design-shaping control sits above it — so the wrap needs
+         no trailing gap of its own inside the card. */
+      .place-map-wrap:last-child { margin-bottom: 0; }
       #place-map {
         margin-top: 14px;
         border-radius: 16px; padding: 8px 6px 2px;
@@ -758,25 +762,21 @@
         </div>
 
 
-        <div class="place-map-wrap">
-          <div class="chips seg place-slider" id="place-slider" role="group" aria-label="Item to place — pick an item, then pick its wall"></div>
-          <div class="measure-panel" id="place-panel" hidden>
-            <div class="mp-main">
-              <span class="mp-label" id="place-panel-label">Item — on wall</span>
-              <div class="seg" role="group" aria-labelledby="place-panel-label" id="place-wall-seg"></div>
-            </div>
-            <p class="seg-note" id="place-panel-note" hidden></p>
-          </div>
-          <p class="place-hint" id="place-hint" aria-live="polite"></p>
-          <div id="place-map" role="img" aria-label="Kitchen layout — the walls are lettered A, B and C, and each item sits on its wall"></div>
-        </div>
-
         <div class="measure" id="measure-base">
           <span class="field-label" id="lbl-base">Base cabinets (in)</span>
           <div class="stepper">
             <button type="button" data-step="-3" data-int="1" data-target="in-base" aria-label="Decrease base inches">−</button>
             <input type="number" id="in-base" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-base" />
             <button type="button" data-step="3" data-int="1" data-target="in-base" aria-label="Increase base inches">+</button>
+          </div>
+        </div>
+
+        <div class="measure" id="island-row" hidden>
+          <span class="field-label" id="lbl-island">Island length (in)</span>
+          <div class="stepper">
+            <button type="button" data-step="-3" data-int="1" data-target="in-island" aria-label="Decrease island inches">−</button>
+            <input type="number" id="in-island" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-island" />
+            <button type="button" data-step="3" data-int="1" data-target="in-island" aria-label="Increase island inches">+</button>
           </div>
         </div>
 
@@ -794,15 +794,6 @@
               <button type="button" data-value="36" aria-pressed="false">36″</button>
               <button type="button" data-value="42" aria-pressed="false">42″</button>
             </div>
-          </div>
-        </div>
-
-        <div class="measure" id="island-row" hidden>
-          <span class="field-label" id="lbl-island">Island length (in)</span>
-          <div class="stepper">
-            <button type="button" data-step="-3" data-int="1" data-target="in-island" aria-label="Decrease island inches">−</button>
-            <input type="number" id="in-island" placeholder="0" min="0" max="360" step="3" inputmode="numeric" aria-labelledby="lbl-island" />
-            <button type="button" data-step="3" data-int="1" data-target="in-island" aria-label="Increase island inches">+</button>
           </div>
         </div>
 
@@ -830,6 +821,18 @@
             <button type="button" data-value="33" aria-pressed="false">33″</button>
             <button type="button" data-value="36" aria-pressed="true">36″</button>
           </div>
+        </div>
+        <div class="place-map-wrap">
+          <div class="chips seg place-slider" id="place-slider" role="group" aria-label="Item to place — pick an item, then pick its wall"></div>
+          <div class="measure-panel" id="place-panel" hidden>
+            <div class="mp-main">
+              <span class="mp-label" id="place-panel-label">Item — on wall</span>
+              <div class="seg" role="group" aria-labelledby="place-panel-label" id="place-wall-seg"></div>
+            </div>
+            <p class="seg-note" id="place-panel-note" hidden></p>
+          </div>
+          <p class="place-hint" id="place-hint" aria-live="polite"></p>
+          <div id="place-map" role="img" aria-label="Kitchen layout — the walls are lettered A, B and C, and each item sits on its wall"></div>
         </div>
 
       </section>
