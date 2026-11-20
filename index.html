@@ -481,14 +481,16 @@
       /* Wall pickers, drawer rows, crown/profile rows */
       #profile-row[hidden], #riser-row[hidden] { display: none; }
       /* Wall key: small schematic showing which wall is which */
-      /* Placement: a mini floor plan in the same visual language as the
-         main 2D plan — thin wall lines, a pale cabinet-depth strip along
+      /* Placement: a slider bar (same pill track as the Measure bar)
+         picks the item, the item's panel below it offers its walls as a
+         segmented choice, and the mini floor plan sits UNDER those
+         controls — thin wall lines, a pale cabinet-depth strip along
          each wall with flush squared corners, lettered wall badges, and
-         frosted item markers seated inside the strip. Below it, a slider
-         bar (same pill track as the Measure bar) picks the item, and the
-         item's panel offers its walls as a segmented choice. */
+         frosted item markers seated inside the strip. Flow: pick an
+         item, pick its wall, then see it in the layout underneath. */
       .place-map-wrap { margin: 0 0 14px; }
       #place-map {
+        margin-top: 14px;
         border-radius: 16px; padding: 8px 6px 2px;
         background: linear-gradient(165deg, rgba(255,255,255,.85), rgba(246,243,240,.75));
         border: 1px solid rgba(255,255,255,.92);
@@ -516,7 +518,7 @@
          never wrapping or scattering onto a second row. Five items max
          (Window / Fridge / Sink / Stove / Pantry) fit the phone-width
          track with a compact icon + label per segment. */
-      .place-slider { flex-wrap: nowrap; margin: 12px 0 0; max-width: none; }
+      .place-slider { flex-wrap: nowrap; margin: 0; max-width: none; }
       .place-slider .chip { flex: 1 1 0; min-width: 0; font-size: 11px; letter-spacing: -.1px; gap: 2px; padding: 8px 1px; }
       .place-slider .chip svg { width: 11px; height: 11px; }
       .place-slider .chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -715,7 +717,6 @@
 
 
         <div class="place-map-wrap">
-          <div id="place-map" role="img" aria-label="Kitchen layout — the walls are lettered A, B and C, and each item sits on its wall"></div>
           <div class="chips seg place-slider" id="place-slider" role="group" aria-label="Item to place — pick an item, then pick its wall"></div>
           <div class="measure-panel" id="place-panel" hidden>
             <div class="mp-main">
@@ -725,6 +726,7 @@
             <p class="seg-note" id="place-panel-note" hidden></p>
           </div>
           <p class="place-hint" id="place-hint" aria-live="polite"></p>
+          <div id="place-map" role="img" aria-label="Kitchen layout — the walls are lettered A, B and C, and each item sits on its wall"></div>
         </div>
 
         <div class="measure" id="measure-base">
