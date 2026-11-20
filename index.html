@@ -511,11 +511,15 @@
       #place-map .pm-chip.sel rect { fill: #EF6526; stroke: #EF6526; filter: drop-shadow(0 3px 8px rgba(239,101,38,.40)); }
       #place-map .pm-chip.sel text { fill: #fff; }
       #place-map .pm-chip.sel .pm-ico { stroke: #fff; }
-      /* Placement slider: the Measure-bar pill track, wrapped to two rows
-         so all six items stay readable at phone width. */
-      .place-slider { flex-wrap: wrap; margin: 12px 0 0; max-width: none; }
-      .place-slider .chip { flex: 1 1 28%; font-size: 12.5px; gap: 4px; padding: 8px 2px; min-width: 0; }
-      .place-slider .chip svg { width: 14px; height: 14px; }
+      /* Placement slider: the Measure-bar pill track as ONE row of
+         equal-width segments — every item the same width, evenly spaced,
+         never wrapping or scattering onto a second row. Five items max
+         (Window / Fridge / Sink / Stove / Pantry) fit the phone-width
+         track with a compact icon + label per segment. */
+      .place-slider { flex-wrap: nowrap; margin: 12px 0 0; max-width: none; }
+      .place-slider .chip { flex: 1 1 0; min-width: 0; font-size: 11px; letter-spacing: -.1px; gap: 2px; padding: 8px 1px; }
+      .place-slider .chip svg { width: 11px; height: 11px; }
+      .place-slider .chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
       #place-panel { margin: 12px 0 0; }
       #place-panel[hidden] { display: none; }
       #place-wall-seg { flex: 1 1 170px; max-width: 320px; }
@@ -1188,19 +1192,19 @@
       /* ---- Wall picks, painted uppers, crown availability ---- */
       var PAINTED_UPPERS = ["WSS", "SSW", "BSS", "GSS"];
       var DEFAULT_PICKS = {
-        "Straight": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A", dish: "A" },
-        "Island": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A", dish: "A" },
-        "L-Shape": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B", dish: "A" },
-        "L+Island": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B", dish: "A" },
-        "Galley": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "A", dish: "A" },
-        "U-Shape": { window: "B", fridge: "A", sink: "B", stove: "C", pantry: "C", dish: "B" }
+        "Straight": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A" },
+        "Island": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A" },
+        "L-Shape": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" },
+        "L+Island": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" },
+        "Galley": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "A" },
+        "U-Shape": { window: "B", fridge: "A", sink: "B", stove: "C", pantry: "C" }
       };
       function picksDefault(kt) {
         /* Called from the state literal, which evaluates before the
            DEFAULT_PICKS assignment — fall back to the L-Shape defaults. */
         var d = (typeof DEFAULT_PICKS !== "undefined" && DEFAULT_PICKS) ? (DEFAULT_PICKS[kt] || DEFAULT_PICKS["L-Shape"]) : null;
-        if (!d) d = { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B", dish: "A" };
-        return { window: d.window, fridge: d.fridge, sink: d.sink, stove: d.stove, pantry: d.pantry, dish: d.dish || d.sink };
+        if (!d) d = { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" };
+        return { window: d.window, fridge: d.fridge, sink: d.sink, stove: d.stove, pantry: d.pantry };
       }
       function arrangementIsDefault() {
         var d = DEFAULT_PICKS[state.ktype];
@@ -1248,19 +1252,27 @@
          can take. Choosing a wall updates state.picks, the marker, the
          plan and the estimate in the same step. */
       var placeSel = null;
+      /* Items the user has actually placed (selected in the slider AND
+         given a wall in the item's panel). The mini layout starts as
+         bare lettered walls: a marker is drawn only for a placed item.
+         This is display only — the design and estimate always use the
+         automatic placements in state.picks regardless. */
+      var placeShown = {};
       var PLACE_ITEMS = [
         { id: "window", label: "Window", icon: '<rect x="4" y="3" width="16" height="18"/><path d="M12 3v18M4 12h16"/>' },
         { id: "fridge", label: "Fridge", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M6 10h12M9 6v2M9 13v3"/>' },
         { id: "sink", label: "Sink", icon: '<path d="M4 11h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M9 11V7a3 3 0 0 1 6 0"/>' },
-        { id: "dish", label: "Dishwasher", icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 8h16M7.5 5.8h.01M11 5.8h.01"/><path d="M7 13.5c2 1.6 4-1.6 6 0 1 .8 2.4.8 4-.2"/>' },
         { id: "stove", label: "Stove", icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/><path d="M6.5 15.5h11"/>' },
         { id: "pantry", label: "Pantry", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M12 3v18"/>' }
       ];
-      var PLACE_LABEL = { window: "Window", fridge: "Fridge", sink: "Sink", dish: "Dishwasher", stove: "Stove", pantry: "Pantry" };
-      var CHIP_W = { window: 62, fridge: 60, sink: 50, dish: 78, stove: 56, pantry: 62 };
+      var PLACE_LABEL = { window: "Window", fridge: "Fridge", sink: "Sink", stove: "Stove", pantry: "Pantry" };
+      var CHIP_W = { window: 62, fridge: 60, sink: 50, stove: 56, pantry: 62 };
       function placeItemVisible(it) {
+        /* A placement entry exists only for an item that is actually in
+           the design: the Window only when switched on, the Pantry only
+           when tall cabinets are entered (Tall = 0 means no pantry). */
         if (it === "window") return state.window === "Yes";
-        if (it === "dish") return state.dish === "Yes";
+        if (it === "pantry") return num("in-tall") > 0;
         return true;
       }
       function pickWallValid(item, wall) {
@@ -1276,23 +1288,12 @@
         }
         return wall === "A" || wall === "B";
       }
-      /* The dishwasher stays beside the sink: it sits on the sink's wall,
-         or — in the standard L arrangement — wraps around the corner onto
-         leg B when wall B is picked for it (the calc engine's dwWrapToB).
-         Everywhere else it follows the sink. */
-      function dishWallEffective() {
-        if (state.dish !== "Yes") return null;
-        var sink = state.picks.sink;
-        if ((state.ktype === "L-Shape" || state.ktype === "L+Island") && sink === "A" && state.picks.dish === "B" && arrangementIsDefault()) return "B";
-        return sink;
-      }
-      function dishWallOffers() {
-        var out = [state.picks.sink];
-        if ((state.ktype === "L-Shape" || state.ktype === "L+Island") && state.picks.sink === "A" && arrangementIsDefault()) out.push("B");
-        return out;
-      }
+      /* The dishwasher has NO placement control: it is placed
+         automatically, immediately beside the sink base — on the sink's
+         leg, or wrapped around the corner to sit immediately after the
+         corner cabinet on the adjoining leg when the sink leg cannot
+         fit it (the calc engine's dwWrapToB). */
       function placeWallOffers(item) {
-        if (item === "dish") return dishWallOffers();
         var g = placeGeom(state.ktype);
         return ["A", "B", "C", "Island"].filter(function (w) {
           if (!pickWallValid(item, w)) return false;
@@ -1300,7 +1301,6 @@
         });
       }
       function placePickEffective(item) {
-        if (item === "dish") return dishWallEffective();
         var offers = placeWallOffers(item);
         var cur = state.picks[item];
         return offers.indexOf(cur) >= 0 ? cur : offers[0];
@@ -1390,14 +1390,13 @@
         }
         return items.map(function (o) { var p = pmWallPoint(w, o.s, PM_DEPTH / 2); return { it: o.it, x: p.x, y: p.y, w: o.w }; });
       }
-      function pmChip(it, cx, cy, wOpt) {
+      function pmChip(it, cx, cy, wOpt, vert) {
         var w = wOpt || CHIP_W[it], meta = null;
         PLACE_ITEMS.forEach(function (m) { if (m.id === it) meta = m; });
         /* Shrunk chips (crowded wall): when the pill is too narrow for
            icon + label at full size, drop the icon and centre the label
            in a smaller size, so the text stays inside the pill instead
-           of spilling past its edge (the Dishwasher label at half width
-           overflowed the pill and ran off the map's edge). */
+           of spilling past its edge. */
         var ico = "", tx, tAttr = "";
         if (w >= 27 + PLACE_LABEL[it].length * 5) {
           ico = '<g class="pm-ico" transform="translate(' + (-w / 2 + 5) + ', -6) scale(0.5)">' + (meta ? meta.icon : "") + "</g>";
@@ -1405,7 +1404,10 @@
         } else {
           tx = 0; tAttr = ' text-anchor="middle" style="font-size:8px"';
         }
-        return '<g class="pm-chip' + (placeSel === it ? " sel" : "") + '" data-item="' + it + '" transform="translate(' + Math.round(cx * 10) / 10 + "," + Math.round(cy * 10) / 10 + ')"><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="10"/>' + ico + '<text x="' + tx + '" y="3.2"' + tAttr + ">" + PLACE_LABEL[it] + "</text></g>";
+        /* Direction rule: a chip is aligned to its wall — on a vertical
+           wall the pill rotates -90 so it runs along that wall, exactly
+           like the labels on the vertical legs of the main 2D plan. */
+        return '<g class="pm-chip' + (placeSel === it ? " sel" : "") + '" data-item="' + it + '" transform="translate(' + Math.round(cx * 10) / 10 + "," + Math.round(cy * 10) / 10 + ")" + (vert ? " rotate(-90)" : "") + '"><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="10"/>' + ico + '<text x="' + tx + '" y="3.2"' + tAttr + ">" + PLACE_LABEL[it] + "</text></g>";
       }
       function renderPlaceMap() {
         var host = $("place-map");
@@ -1413,9 +1415,13 @@
         if (placeSel && !placeItemVisible(placeSel)) placeSel = null;
         var kt = state.ktype, g = placeGeom(kt);
         var onWall = {};
-        ["window", "fridge", "sink", "dish", "stove", "pantry"].forEach(function (it) {
+        ["window", "fridge", "sink", "stove", "pantry"].forEach(function (it) {
           if (!placeItemVisible(it)) return;
-          var w = it === "dish" ? dishWallEffective() : state.picks[it];
+          /* Show-after-selection: until the user has placed the item
+             (slider selection + wall picked in its panel), the layout
+             stays bare — no marker is drawn for it. */
+          if (!placeShown[it]) return;
+          var w = state.picks[it];
           if (w !== "Island" && !g.walls[w]) w = "A";
           (onWall[w] = onWall[w] || []).push(it);
         });
@@ -1450,13 +1456,15 @@
           }
           var w = g.walls[k];
           if (!w) return;
-          layoutWall(w, list).forEach(function (o) { out.push(pmChip(o.it, o.x, o.y, o.w)); });
+          var vert = w.x1 === w.x2;
+          layoutWall(w, list).forEach(function (o) { out.push(pmChip(o.it, o.x, o.y, o.w, vert)); });
         });
         out.push("</svg>");
         host.innerHTML = out.join("");
       }
-      /* Slider layout: same sliding pill as segLayout, but the track
-         wraps to two rows, so the pill also follows the button's row. */
+      /* Slider layout: same sliding pill as segLayout; the track is a
+         single row of equal-width segments, so the pill simply slides
+         along it to the selected item. */
       function placeSegLayout(animate) {
         var seg = $("place-slider");
         if (!seg) return;
@@ -1509,8 +1517,7 @@
         });
         var note = $("place-panel-note");
         var nt = "";
-        if (item === "dish") nt = dishWallOffers().length > 1 ? "The dishwasher stays beside the sink — pick the sink's wall, or wall B to wrap it around the corner beside the sink." : "The dishwasher stays beside the sink, on the sink's wall.";
-        else if (item === "pantry") nt = "Tall units sit at the end of the chosen wall.";
+        if (item === "pantry") nt = "Tall units sit at the end of the chosen wall.";
         else if (item === "window") nt = "The window sits on this wall; the sink stays centred under it when they share a wall.";
         note.textContent = nt;
         note.hidden = !nt;
@@ -1551,13 +1558,27 @@
             var b = e.target.closest("button");
             if (!b || !placeSel) return;
             var w = b.getAttribute("data-value");
-            if (state.picks[placeSel] !== w) {
-              state.picks[placeSel] = w;
-              renderPlace();
-              calc();
-            }
+            var changed = state.picks[placeSel] !== w;
+            state.picks[placeSel] = w;
+            /* Picking a wall is what puts the item on the mini layout:
+               from here on its marker is drawn on the picked wall. */
+            placeShown[placeSel] = true;
+            renderPlace();
+            if (changed) calc();
           });
         }
+        /* The Pantry entry exists only while tall cabinets are entered:
+           refresh the placement UI whenever the tall length changes
+           (typed or stepped — these listeners attach after the generic
+           input/stepper wiring, so they read the updated value). */
+        var tallInp = $("in-tall");
+        if (tallInp) {
+          tallInp.addEventListener("input", function () { renderPlace(); });
+          tallInp.addEventListener("change", function () { renderPlace(); });
+        }
+        document.querySelectorAll('.stepper button[data-target="in-tall"]').forEach(function (b) {
+          b.addEventListener("click", function () { renderPlace(); });
+        });
         syncPlaceSlider(false);
         updatePlaceHint();
         var placeRaf = 0;
@@ -1829,7 +1850,7 @@
          panel quantities): a manual panel edit wins until this changes. */
       function designSig() {
         function v(id) { var el = $(id); return el ? el.value : ""; }
-        return [state.ktype, state.picks.window, state.picks.fridge, state.picks.sink, state.picks.stove, state.picks.pantry, state.picks.dish, state.baseCorner, state.upperCorner, state.fridge, state.fridgeNear, state.window, state.cooking, state.dish, state.wallH, state.tallH, v("in-legA"), v("in-legB"), v("in-legC"), v("in-base"), v("in-island"), v("in-tall"), v("in-windoww")].join("|");
+        return [state.ktype, state.picks.window, state.picks.fridge, state.picks.sink, state.picks.stove, state.picks.pantry, state.baseCorner, state.upperCorner, state.fridge, state.fridgeNear, state.window, state.cooking, state.dish, state.wallH, state.tallH, v("in-legA"), v("in-legB"), v("in-legC"), v("in-base"), v("in-island"), v("in-tall"), v("in-windoww")].join("|");
       }
       var panelManual = {};
       var lastSugg = null;
@@ -2248,7 +2269,7 @@
       function ktypeInit() {
         var btns = document.querySelectorAll(".ktype-card");
         for (var i = 0; i < btns.length; i++) {
-          btns[i].addEventListener("click", function () { ktypeSet(this.getAttribute("data-value")); state.picks = picksDefault(state.ktype); refreshKType(); calc(); });
+          btns[i].addEventListener("click", function () { ktypeSet(this.getAttribute("data-value")); state.picks = picksDefault(state.ktype); placeShown = {}; refreshKType(); calc(); });
         }
         ktypeSet(state.ktype);
       }
@@ -2743,9 +2764,24 @@
           (leg.upperSegs || []).forEach(function (seg) { paintSeg(leg, seg, 12, true); });
           if (!suppress && leg.winInt) {
             var wp = wallPoint(leg, leg.winInt.s);
-            R(LX, wp.x, wp.y - 4.5, leg.winInt.w, 9, 'fill="#8ED0F0" stroke="#5B8DB8" stroke-width="0.9"');
-            LN(LX, wp.x, wp.y, wp.x + leg.winInt.w, wp.y, 'stroke="#FFFFFF" stroke-width="1.6"');
-            T(LX, wp.x + leg.winInt.w / 2, wp.y - 8, "WINDOW " + Math.round(winW) + "″", 'text-anchor="middle" font-size="5.5" font-weight="700" fill="#33607E"');
+            var wlbl = "WINDOW " + Math.round(winW) + "″", wattr = 'text-anchor="middle" font-size="5.5" font-weight="700" fill="#33607E"';
+            if (leg.frame === "VR" || leg.frame === "VL") {
+              /* Direction rule: on a vertical leg the window runs ALONG
+                 the wall — a tall bar centred on the wall line, and its
+                 label rotated -90 to read along the leg, outside the
+                 wall (right of a VR wall, left of a VL wall). */
+              R(LX, wp.x - 4.5, wp.y, 9, leg.winInt.w, 'fill="#8ED0F0" stroke="#5B8DB8" stroke-width="0.9"');
+              LN(LX, wp.x, wp.y, wp.x, wp.y + leg.winInt.w, 'stroke="#FFFFFF" stroke-width="1.6"');
+              T(LX, wp.x + (leg.frame === "VR" ? 8 : -8), wp.y + leg.winInt.w / 2, wlbl, wattr, -90);
+            } else if (leg.frame === "HB") {
+              R(LX, wp.x, wp.y - 4.5, leg.winInt.w, 9, 'fill="#8ED0F0" stroke="#5B8DB8" stroke-width="0.9"');
+              LN(LX, wp.x, wp.y, wp.x + leg.winInt.w, wp.y, 'stroke="#FFFFFF" stroke-width="1.6"');
+              T(LX, wp.x + leg.winInt.w / 2, wp.y + 13, wlbl, wattr);
+            } else {
+              R(LX, wp.x, wp.y - 4.5, leg.winInt.w, 9, 'fill="#8ED0F0" stroke="#5B8DB8" stroke-width="0.9"');
+              LN(LX, wp.x, wp.y, wp.x + leg.winInt.w, wp.y, 'stroke="#FFFFFF" stroke-width="1.6"');
+              T(LX, wp.x + leg.winInt.w / 2, wp.y - 8, wlbl, wattr);
+            }
           }
         });
 
@@ -3069,6 +3105,17 @@
           else out.unshift("DW");
           return out;
         }
+        function dwTextAfterCorner(list) {
+          /* Wrapped DW in the design text: immediately AFTER the corner
+             cabinet when the corner cabinet is carried on this leg,
+             otherwise first in the leg — either way the DW reads as
+             sitting right against the corner, matching the plan, where
+             it is painted at the very start of the leg's run. */
+          var out = list.slice();
+          if (out.length && /^(BBC|BLS|BER)/.test(out[0])) out.splice(1, 0, "DW");
+          else out.unshift("DW");
+          return out;
+        }
         /* ---- Drawer base beside the stove (best effort) ----
            STOVE case only (cooktop is unchanged): the kitchen's ONE
            drawer base belongs immediately beside the range, on the leg
@@ -3321,15 +3368,12 @@
             if (!planL2.ok) { planL2 = evalL2(planL2.flip); planL2.dwWrap = state.dish === "Yes" && legBft > 0; planL2.ok = true; }
             if (legAft <= 0) { planL2.flip = false; planL2.dwWrap = false; }
             baseFlipL = planL2.flip; dwWrapToB = !!planL2.dwWrap;
-            /* An explicit Dishwasher = wall B pick is a wrap request:
-               evalL2 only wraps on spacing (when the DW cannot fit leg
-               A), so without this the pick moved the mini-map marker but
-               the priced design and the plan kept the DW on leg A. Force
-               the wrap when leg B can fit corner + stove + DW. */
-            if (!dwWrapToB && dishWallEffective() === "B") {
-              var footBw2 = baseFlipL ? cbOnA2 : cbOnB2;
-              if (lenBin2 - footBw2 - 30 - dwIn2 >= 0) dwWrapToB = true;
-            }
+            /* The wrap is AUTOMATIC only — there is no dishwasher wall
+               pick. evalL2 wraps solely on spacing: leg A fits fridge +
+               sink + corner but not the DW, and leg B fits corner +
+               stove + DW. On leg B the DW is drawn and listed
+               immediately after the corner cabinet, adjacent to the
+               corner — never pushed further down the leg. */
             upperFlipL = baseFlipL && state.upperCorner === "WBC";
             var footA2 = baseFlipL ? cbOnB2 : 0, footB2 = baseFlipL ? cbOnA2 : cbOnB2;
             if (legAft <= 0) footB2 = 0; /* no leg A entered — no corner footprint owed */
@@ -3348,7 +3392,7 @@
             }
             effA2 = clampU(Au - fridgeUnits - (dwWrapToB ? 0 : dwUnits)); effB2 = clampU(bBfillIn2 / 3);
             if (state.dish === "Yes") {
-              if (dwWrapToB) { dispA2 = bA2; dispB2 = ["DW"].concat(bB2); }
+              if (dwWrapToB) { dispA2 = bA2; dispB2 = dwTextAfterCorner(bB2); }
               else dispA2 = withDWText(bA2);
             }
           }
@@ -3511,8 +3555,10 @@
           var pairsD = planLegs.map(function (pl) {
             var l = pl.base;
             if (state.dish === "Yes") {
-              if (dwWrapToB && pl.key === "B") l = ["DW"].concat(l);
-              else if (pl.key === state.picks.sink) l = withDWText(l);
+              if (dwWrapToB && pl.key === "B") l = dwTextAfterCorner(l);
+              /* When the DW wrapped to leg B, the sink leg must NOT also
+                 gain a DW in the text — it sits on B only. */
+              else if (!dwWrapToB && pl.key === state.picks.sink) l = withDWText(l);
             }
             return [pl.key, l];
           });
@@ -4077,6 +4123,7 @@
         measure = { sink: null, window: null, hood: null };
         measureSel = null;
         placeSel = null;
+        placeShown = {};
         $("measure-panel").hidden = true;
         discInput.value = "";
         $("chk-hst").checked = false;
