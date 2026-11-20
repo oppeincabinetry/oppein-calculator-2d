@@ -1210,43 +1210,81 @@
         }
         return sku.replace(/(\d+)(FH)?$/, function (m, d, fh) { return String(nw) + (fh || ""); });
       }
-      function flexFillers(segs) {
+      /* ONLY real catalogue cabinets: standard 3in steps, 9–36in wide.
+         Never invent a size (no B29, no W56, no W60). A space that is not
+         an exact cabinet size takes the largest real cabinet(s) that fit,
+         with the leftover split as filler strips on BOTH sides of the
+         cabinet(s) — e.g. 29in = 1in filler + 27in cabinet + 1in filler;
+         28in = 0.5 + 27 + 0.5; a 2in remainder splits 1 + 1. */
+      function realCabWidths(totalIn, minCab) {
+        /* totalIn is a multiple of 3; returns widths in 3in steps within
+           [minCab, 36] summing exactly to totalIn. */
+        var parts = [], rem = totalIn;
+        while (rem > 0) {
+          if (rem <= 36) { parts.push(rem); rem = 0; }
+          else if (rem - 36 >= minCab) { parts.push(36); rem -= 36; }
+          else { parts.push(rem - minCab); rem = minCab; }
+        }
+        return parts;
+      }
+      function realSpanPieces(kind, s0, space, likeSku, wallH) {
+        /* Compose the span [s0, s0+space) from real cabinets + filler
+           strips. kind is "cab" (base) or "u" (upper). */
+        var isU = kind === "u", minCab = isU ? 9 : 12;
+        var pieces = [];
+        if (!(space > 0)) return pieces;
+        var cabTotal = Math.floor(space / 3 + 1e-9) * 3;
+        if (cabTotal < minCab) {
+          pieces.push({ kind: "filler", sku: "FILL", s: s0, w: space });
+          return pieces;
+        }
+        var widths = realCabWidths(cabTotal, minCab);
+        var left = space - cabTotal, f1 = left / 2, f2 = left - f1, cur = s0;
+        if (f1 > 0.01) { pieces.push({ kind: "filler", sku: "FILL", s: cur, w: f1 }); cur += f1; }
+        widths.forEach(function (w) {
+          var sku = isU ? "W" + w + (likeSku && likeSku.charAt(0) === "W" ? likeSku.substring(3) : wallH) : "B" + w + "FH";
+          pieces.push({ kind: kind, sku: sku, s: cur, w: w });
+          cur += w;
+        });
+        if (f2 > 0.01) pieces.push({ kind: "filler", sku: "FILL", s: cur, w: f2 });
+        return pieces;
+      }
+      function flexFillers(segs, cabKind, wallH) {
+        /* Every generic filler span becomes real cabinets centred in the
+           span with filler strips split on both sides — never a stretched
+           or invented cabinet size. */
         var out = [];
-        segs.forEach(function (s) { if (s.kind !== "filler") out.push(s); });
-        segs.forEach(function (f) {
-          if (f.kind !== "filler") return;
-          var target = null;
-          out.forEach(function (p) { if ((p.kind === "cab" || p.kind === "u") && Math.abs(p.s + p.w - f.s) < 0.01) target = p; });
-          if (target) { target.w += f.w; target.sku = widenSku(target.sku, f.w); return; }
-          out.forEach(function (p) { if (!target && (p.kind === "cab" || p.kind === "u") && Math.abs(p.s - (f.s + f.w)) < 0.01) target = p; });
-          if (target) { target.s = f.s; target.w += f.w; target.sku = widenSku(target.sku, f.w); }
-          /* No adjacent cabinet to flex: the slack stays blank, never a FILL piece. */
+        segs.forEach(function (s) {
+          if (s.kind !== "filler") { out.push(s); return; }
+          realSpanPieces(cabKind, s.s, s.w, null, wallH).forEach(function (p) { out.push(p); });
         });
         return out;
       }
-      /* Gapless runs: flex the neighbouring cabinet across any empty span so
-         cabinets run continuously into the corner and wall-to-wall. The
-         window span (keepOut) is an immovable barrier — uppers stop at its
-         casings and the span itself stays empty. */
-      function closeGaps(segs, zStart, zEnd, keepOut) {
-        function flexable(sg) { return sg.kind === "cab" || sg.kind === "u"; }
+      /* Gapless runs: every empty span is composed from real cabinets +
+         split filler strips, so runs are continuous into the corner and
+         wall-to-wall with only real sizes. The window span (keepOut) is
+         an immovable barrier — uppers stop at its casings and the span
+         itself stays empty. */
+      function closeGaps(segs, zStart, zEnd, keepOut, cabKind, wallH) {
         var chain = segs.slice();
         if (keepOut) chain.push({ kind: "barrier", s: keepOut.s, w: keepOut.w });
         chain.sort(function (a, b) { return a.s - b.s; });
+        function fillSpan(s0, w) {
+          if (w < 0.25) return;
+          realSpanPieces(cabKind, s0, w, null, wallH).forEach(function (p) { segs.push(p); });
+        }
         for (var i = 0; i + 1 < chain.length; i++) {
           var A = chain[i], B = chain[i + 1];
           var gap = B.s - (A.s + A.w);
-          if (gap < 0.5) continue;
-          if (flexable(A)) { A.w += gap; A.sku = widenSku(A.sku, Math.round(gap)); }
-          else if (flexable(B)) { B.s = A.s + A.w; B.w += gap; B.sku = widenSku(B.sku, Math.round(gap)); }
+          if (gap >= 0.25) fillSpan(A.s + A.w, gap);
         }
         if (chain.length && zStart != null) {
           var first = chain[0], lg = first.s - zStart;
-          if (lg >= 0.5 && flexable(first)) { first.s = zStart; first.w += lg; first.sku = widenSku(first.sku, Math.round(lg)); }
+          if (lg >= 0.25) fillSpan(zStart, lg);
         }
         if (chain.length && zEnd != null) {
           var last = chain[chain.length - 1], tg = zEnd - (last.s + last.w);
-          if (tg >= 0.5 && flexable(last)) { last.w += tg; last.sku = widenSku(last.sku, Math.round(tg)); }
+          if (tg >= 0.25) fillSpan(last.s + last.w, tg);
         }
         return segs;
       }
@@ -1464,9 +1502,11 @@
             if (iv[1] > c0 + 0.01) gaps.push([c0, iv[1]]);
           });
           gaps.sort(function (a, b) { return (b[1] - b[0]) - (a[1] - a[0]); });
-          if (gaps.length && gaps[0][1] - gaps[0][0] >= 12) {
-            var gw = Math.round(gaps[0][1] - gaps[0][0]);
-            segs.push({ kind: "u", sku: widenSku(sku, gw - skuW(sku)), s: gaps[0][0], w: gw });
+          if (gaps.length && gaps[0][1] - gaps[0][0] >= 9) {
+            var gw = gaps[0][1] - gaps[0][0];
+            /* Compose the span from real cabinets (3in steps, 36in max)
+               with any sub-3in leftover split as filler strips both sides. */
+            realSpanPieces("u", gaps[0][0], gw, sku, null).forEach(function (p) { segs.push(p); });
           }
         });
         return segs;
@@ -1551,7 +1591,15 @@
           var vert = leg.frame === "VR" || leg.frame === "VL";
           var rot = vert || seg.w < 15;
           var t = '<text text-anchor="middle" font-size="' + fs + '" fill="' + color + '"' + (rot ? ' transform="rotate(-90 ' + n(c.x) + ' ' + n(c.y) + ')"' : '') + '>';
-          if (seg.sku === "FILL") t += '<tspan x="' + n(c.x) + '" y="' + n(c.y + 2) + '" font-weight="600">FILL</tspan>';
+          if (seg.sku === "FILL") {
+            var fw = Math.round(seg.w * 2) / 2;
+            if (seg.w >= 8) {
+              t += '<tspan x="' + n(c.x) + '" y="' + n(c.y - 0.5) + '" font-weight="600">FILL</tspan>';
+              t += '<tspan x="' + n(c.x) + '" dy="6.2" font-size="' + (fs - 1.1) + '">' + fw + '″</tspan>';
+            } else {
+              t += '<tspan x="' + n(c.x) + '" y="' + n(c.y + 2) + '" font-weight="600">' + fw + '″</tspan>';
+            }
+          }
           else {
             t += '<tspan x="' + n(c.x) + '" y="' + n(c.y - 0.5) + '" font-weight="700">' + seg.sku + '</tspan>';
             t += '<tspan x="' + n(c.x) + '" dy="6.2" font-size="' + (fs - 1.1) + '">' + seg.w + '″</tspan>';
@@ -1585,7 +1633,7 @@
             T(LS, gc.x, gc.y + 1.8, "4″", 'text-anchor="middle" font-size="5" font-weight="700" fill="#8A6D00"', gv ? -90 : 0);
             return;
           }
-          if (seg.w >= 8 || isUpper) label2(leg, seg, isUpper ? 6 : (seg.kind === "tall" ? 12 : 17), isUpper ? 5 : 5.8, isUpper ? "#495057" : "#212529");
+          if (seg.w >= 8 || isUpper || seg.kind === "filler") label2(leg, seg, isUpper ? 6 : (seg.kind === "tall" ? 12 : seg.kind === "corner" ? 20.5 : 17), isUpper ? 5 : 5.8, isUpper ? "#495057" : "#212529");
         }
         function paintClearance(leg, s0, w, depth, withLabel) {
           var rc = segRectFor(leg, s0, w, depth);
@@ -1625,20 +1673,31 @@
             extra.push(fridgeSeg);
             ze = leg.len - fridgeW - g;
           }
-          var placed = placeSinkRun(zs, ze, parsed, { cornerStartSku: o.cornerStartSku || null, cornerEndSku: o.cornerEndSku || null, dwW: dwW, sinkCentre: sinkAnchor, split: o.split || "all" });
+          if (o.ze != null) ze = o.ze;
+          var placed = placeSinkRun(zs, ze, parsed, { cornerStartSku: o.cornerStartSku || null, cornerEndSku: o.cornerEndSku || null, dwW: o.dwW != null ? o.dwW : dwW, sinkCentre: sinkAnchor, split: o.split || "all" });
           leg.baseSegs = extra.concat(placed.segs); leg.sinkSeg = placed.sinkSeg; leg.fridgeSeg = fridgeSeg;
+          leg.dwSeg = placed.dwSeg || null;
           var winInt = null;
-          if (winOn && placed.sinkSeg) winInt = { s: placed.sinkSeg.s + placed.sinkSeg.w / 2 - winW / 2, w: winW };
+          if (winOn && placed.sinkSeg) {
+            /* The window is mandatory when selected: centred on the sink,
+               clamped fully onto the sink leg, never dropped or shrunk. */
+            var ws = placed.sinkSeg.s + placed.sinkSeg.w / 2 - winW / 2;
+            if (winW <= leg.len) ws = Math.max(0, Math.min(ws, leg.len - winW));
+            winInt = { s: ws, w: winW };
+          }
           leg.winInt = winInt;
-          leg.upperSegs = placeUppers(0, leg.len, pl.wall, { cornerStartSku: o.uCornerStart || null, cornerEndSku: o.uCornerEnd || null, windowInt: winInt, fixedFridge: fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab });
+          leg.upperSegs = placeUppers(0, o.uZe != null ? o.uZe : leg.len, pl.wall, { cornerStartSku: o.uCornerStart || null, cornerEndSku: o.uCornerEnd || null, windowInt: winInt, fixedFridge: fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab });
           return placed;
         }
         function doRangeLeg(leg, pl, o) {
           var parsed = parseBase(pl.base, ct);
           var end = o.end != null ? o.end : o.off + leg.len;
-          var placed = placeRangeRun(o.off, end, parsed, { fridgeW: o.fridge ? fridgeW : 0, nearGap: nearGap, hoodCentre: hoodAnchor, template: o.template || "fillFirst", cooktop: r.cooking === "Cooktop" });
-          leg.baseSegs = placed.segs; leg.rangeSeg = placed.rangeSeg; leg.fridgeSeg = placed.fridgeSeg;
-          leg.upperSegs = placeUppers(o.uOff != null ? o.uOff : o.off, end, pl.wall, { fixedRange: placed.rangeSeg, fixedFridge: placed.fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab });
+          var off = o.off, pre = [];
+          if (o.dwAtStart) { pre.push({ kind: "dw", sku: "DW", s: off, w: o.dwAtStart }); off += o.dwAtStart; }
+          var placed = placeRangeRun(off, end, parsed, { fridgeW: o.fridge ? fridgeW : 0, nearGap: nearGap, hoodCentre: hoodAnchor, template: o.template || "fillFirst", cooktop: r.cooking === "Cooktop" });
+          leg.baseSegs = pre.concat(placed.segs); leg.rangeSeg = placed.rangeSeg; leg.fridgeSeg = placed.fridgeSeg;
+          leg.dwSeg = pre.length ? pre[0] : null;
+          leg.upperSegs = placeUppers(o.uOff != null ? o.uOff : o.off, end, pl.wall, { fixedRange: placed.rangeSeg, fixedFridge: placed.fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab, cornerStartSku: o.uCornerStart || null });
           return placed;
         }
         function paintTallsH(leg) {
@@ -1660,33 +1719,55 @@
           legM.upperSegs = placeUppers(0, lenM, plM.wall, { fixedRange: placedM.rangeSeg, fixedFridge: placedM.fridgeSeg, fixedFridgeSku: parseWall(plM.wall).fridgeCab, windowInt: winIntM });
           wallH(-tallTotal - 6, lenM + 6, 0);
           paintTallsH(legM);
-          dimH(0, lenM, -27, fmtFtIn(lenM));
+          dimH(-tallTotal, lenM, -27, tallTotal > 0 ? fmtFtIn(lenM + tallTotal) + " (" + fmtFtIn(lenM) + " + " + fmtFtIn(tallTotal) + " pantry)" : fmtFtIn(lenM));
           sinkLeg = legM; rangeLeg = legM;
           BW = lenM; BH = 34; minX = -tallTotal - 50;
         } else if (kt === "L-Shape" || kt === "L+Island") {
           var plA = legMap.A, plB = legMap.B, lenA = plA.ft * 12, lenB = plB.ft * 12;
-          var bcSku = parseBase(plA.base, ct).corners[0] || null;
-          var ucSku = parseWall(plA.wall).corners[0] || null;
-          var offB = baseCornerOff(bcSku);
+          /* The corner cabinet may sit on either leg (chosen per plan by
+             spacing in calc): read it from whichever leg's list carries it. */
+          var bcSkuA = parseBase(plA.base, ct).corners[0] || null;
+          var bcSkuB = parseBase(plB.base, ct).corners[0] || null;
+          var bcSku = bcSkuA || bcSkuB;
+          var baseFlip = !bcSkuA && !!bcSkuB;
+          var ucSkuA = parseWall(plA.wall).corners[0] || null;
+          var ucSkuB = parseWall(plB.wall).corners[0] || null;
+          var ucSku = ucSkuA || ucSkuB;
+          var upperFlip = !ucSkuA && !!ucSkuB;
+          var offB = baseFlip ? skuW(bcSkuB) : baseCornerOff(bcSku);
+          var uOffB = upperFlip ? 0 : upperCornerOff(ucSku);
           var legA = { key: "A", frame: "HT", x: 0, y: 3, len: lenA, off: 0, sMax: lenA };
           var legB = { key: "B", frame: "VR", x: lenA, y: 3, len: lenB, off: offB, sMax: lenB };
+          /* When the corner sits on leg B, leg A's run ends at the corner
+             footprint deduction — continuity filling must stop there too. */
+          if (baseFlip) legA.closeEnd = lenA - baseCornerOff(bcSku);
+          if (upperFlip) legA.uCloseEnd = lenA - upperCornerOff(ucSku);
           legs.A = legA; legs.B = legB;
-          doSinkLeg(legA, plA, { cornerEndSku: bcSku, uCornerEnd: ucSku, split: "all", fridgeStart: true });
-          doRangeLeg(legB, plB, { off: offB, end: lenB, fridge: false, template: "fillFirst", uOff: upperCornerOff(ucSku) });
+          doSinkLeg(legA, plA, {
+            cornerEndSku: baseFlip ? null : bcSku, uCornerEnd: upperFlip ? null : ucSku,
+            ze: baseFlip ? lenA - baseCornerOff(bcSku) : lenA, uZe: upperFlip ? lenA - upperCornerOff(ucSku) : lenA,
+            dwW: plB.dwWrap ? 0 : dwW, split: "all", fridgeStart: true
+          });
+          doRangeLeg(legB, plB, { off: offB, end: lenB, fridge: false, template: "fillFirst", uOff: uOffB, dwAtStart: plB.dwWrap ? dwW : 0, uCornerStart: upperFlip ? ucSku : null });
+          if (baseFlip && bcSku) legB.baseSegs = [{ kind: "corner", sku: bcSku, s: 0, w: skuW(bcSku) }].concat(legB.baseSegs);
           wallH(-6, lenA + 3, 0);
           wallV(lenA + 3, 0, 3 + lenB + tallTotal + 6);
-          if (bcSku && bcSku.indexOf("BBC") === 0) paintClearance(legB, 24, 2, 24, true);
-          if (bcSku && /^(BER|BLS)/.test(bcSku)) PG(LX, [[lenA - 33, 3], [lenA, 3], [lenA, 36], [lenA - 24, 36], [lenA - 24, 27], [lenA - 33, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
-          var ucWinHit = legA.winInt && legA.winInt.s + legA.winInt.w > lenA - 24 && legA.winInt.s < lenA;
-          if (ucSku && ucSku.indexOf("WBC") === 0) paintClearance(legB, 12, 2, 12, false);
-          if (ucSku && !ucWinHit && ucSku.indexOf("WER") === 0) PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 12, 15], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
-          if (ucSku && !ucWinHit && ucSku.indexOf("WDC") === 0) { PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenA - 12, 16, ucSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
-          if (bcSku && /^(BER|BLS)/.test(bcSku)) T(LX, lenA - 16, 17, bcSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
+          if (bcSku && bcSku.indexOf("BBC") === 0 && !baseFlip) paintClearance(legB, 24, 2, 24, true);
+          if (bcSku && bcSku.indexOf("BBC") === 0 && baseFlip) paintClearance(legA, lenA - 26, 2, 24, true);
+          if (bcSku && !baseFlip && /^(BER|BLS)/.test(bcSku)) PG(LX, [[lenA - 33, 3], [lenA, 3], [lenA, 36], [lenA - 24, 36], [lenA - 24, 27], [lenA - 33, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
+          var ucWinHit = !upperFlip && legA.winInt && legA.winInt.s + legA.winInt.w > lenA - 24 && legA.winInt.s < lenA;
+          if (ucSku && ucSku.indexOf("WBC") === 0 && !upperFlip) paintClearance(legB, 12, 2, 12, false);
+          if (ucSku && ucSku.indexOf("WBC") === 0 && upperFlip) paintClearance(legA, lenA - 14, 2, 12, false);
+          if (ucSku && !upperFlip && !ucWinHit && ucSku.indexOf("WER") === 0) PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 12, 15], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
+          if (ucSku && !upperFlip && !ucWinHit && ucSku.indexOf("WDC") === 0) { PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenA - 12, 10.5, ucSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
+          if (bcSku && !baseFlip && /^(BER|BLS)/.test(bcSku)) T(LX, lenA - 16, 23.5, bcSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
           /* Talls grouped at the far (bottom) end of leg B */
           var tallB = 0;
           tallList.forEach(function (sk) { var w = skuW(sk); paintSeg(legB, { kind: /^(PC|HPC)/.test(sk) ? "tall" : "cab", sku: sk, s: lenB + tallB, w: w }, 24, false); tallB += w; });
           dimH(0, lenA, -27, "A — " + fmtFtIn(lenA));
-          dimV(3, 3 + lenB, lenA + 24, "B — " + fmtFtIn(lenB), 1);
+          /* The dimension covers the pantry too: talls extend leg B past
+             its entered length, and the label shows the split. */
+          dimV(3, 3 + lenB + tallTotal, lenA + 24, tallTotal > 0 ? "B — " + fmtFtIn(lenB + tallTotal) + " (" + fmtFtIn(lenB) + " + " + fmtFtIn(tallTotal) + " pantry)" : "B — " + fmtFtIn(lenB), 1);
           sinkLeg = legA; rangeLeg = legB;
           BW = lenA + 24; BH = 3 + lenB + tallTotal; minX = -50;
         } else if (kt === "Galley") {
@@ -1699,7 +1780,7 @@
           wallH(-tallTotal - 6, lenGA + 6, 0);
           wallH(-6, lenGB + 6, 96);
           paintTallsH(legGA);
-          dimH(0, lenGA, -27, "A — " + fmtFtIn(lenGA));
+          dimH(-tallTotal, lenGA, -27, tallTotal > 0 ? "A — " + fmtFtIn(lenGA + tallTotal) + " (" + fmtFtIn(lenGA) + " + " + fmtFtIn(tallTotal) + " pantry)" : "A — " + fmtFtIn(lenGA));
           dimH(0, lenGB, 120, "B — " + fmtFtIn(lenGB), true);
           dimV(27, 69, -tallTotal - 22, "Walkway 42″", -1);
           sinkLeg = legGA; rangeLeg = legGB;
@@ -1730,8 +1811,8 @@
           if (bcU && /^(BER|BLS)/.test(bcU)) {
             PG(LX, [[0, 3], [33, 3], [33, 27], [27, 27], [27, 36], [3, 36], [3, 27], [0, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
             PG(LX, [[lenUB - 33, 3], [lenUB, 3], [lenUB, 36], [lenUB - 24, 36], [lenUB - 24, 27], [lenUB - 33, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
-            T(LX, 14, 17, bcU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
-            T(LX, lenUB - 16, 17, bcU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
+            T(LX, 14, 23.5, bcU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
+            T(LX, lenUB - 16, 23.5, bcU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
           }
           var ucWinL = legUB.winInt && legUB.winInt.s < 24;
           var ucWinR = legUB.winInt && legUB.winInt.s + legUB.winInt.w > lenUB - 24;
@@ -1741,12 +1822,12 @@
             if (!ucWinR) PG(LX, [[lenUB - 24, 3], [lenUB, 3], [lenUB, 27], [lenUB - 12, 27], [lenUB - 12, 15], [lenUB - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
           }
           if (ucU && ucU.indexOf("WDC") === 0) {
-            if (!ucWinL) { PG(LX, [[0, 3], [24, 3], [24, 15], [12, 27], [0, 27]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, 11.5, 16, ucU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
-            if (!ucWinR) { PG(LX, [[lenUB - 24, 3], [lenUB, 3], [lenUB, 27], [lenUB - 12, 27], [lenUB - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenUB - 11.5, 16, ucU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
+            if (!ucWinL) { PG(LX, [[0, 3], [24, 3], [24, 15], [12, 27], [0, 27]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, 11.5, 10.5, ucU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
+            if (!ucWinR) { PG(LX, [[lenUB - 24, 3], [lenUB, 3], [lenUB, 27], [lenUB - 12, 27], [lenUB - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenUB - 11.5, 10.5, ucU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
           }
           dimH(0, lenUB, -27, "B — " + fmtFtIn(lenUB));
           dimV(3, 3 + lenUA, -24, "A — " + fmtFtIn(lenUA), -1);
-          dimV(3, 3 + lenUC, lenUB + 27, "C — " + fmtFtIn(lenUC), 1);
+          dimV(3, 3 + lenUC + tallC, lenUB + 27, tallC > 0 ? "C — " + fmtFtIn(lenUC + tallC) + " (" + fmtFtIn(lenUC) + " + " + fmtFtIn(tallC) + " pantry)" : "C — " + fmtFtIn(lenUC), 1);
           sinkLeg = legUB; rangeLeg = legUC;
           BW = lenUB; BH = botY; minX = -50;
         }
@@ -1768,8 +1849,8 @@
         /* Paint base + upper segments for all legs */
         Object.keys(legs).forEach(function (k) {
           var leg = legs[k];
-          leg.baseSegs = closeGaps(flexFillers(leg.baseSegs || []), leg.off || 0, leg.len, null);
-          leg.upperSegs = closeGaps(flexFillers(leg.upperSegs || []), null, leg.len, leg.winInt || null);
+          leg.baseSegs = closeGaps(flexFillers(leg.baseSegs || [], "cab", r.wallH), leg.off || 0, leg.closeEnd != null ? leg.closeEnd : leg.len, null, "cab", r.wallH);
+          leg.upperSegs = closeGaps(flexFillers(leg.upperSegs || [], "u", r.wallH), null, leg.uCloseEnd != null ? leg.uCloseEnd : leg.len, leg.winInt || null, "u", r.wallH);
           (leg.baseSegs || []).forEach(function (seg) { paintSeg(leg, seg, 24, false); });
           (leg.upperSegs || []).forEach(function (seg) { paintSeg(leg, seg, 12, true); });
           if (leg.winInt) {
@@ -1803,9 +1884,24 @@
         /* Markers + selected measure dimension */
         var LM = [];
         function marker(item, leg, sPt, letter) {
-          var c = item === "window" ? wallPoint(leg, sPt) : pointAt(leg, sPt, 12);
           var sel = measureSel === item;
-          LM.push('<g class="plan-marker" data-m="' + item + '"><circle cx="' + n(c.x) + '" cy="' + n(c.y) + '" r="11" fill="transparent"/><circle cx="' + n(c.x) + '" cy="' + n(c.y) + '" r="7" fill="' + (sel ? "#EF6526" : "#FFFFFF") + '" stroke="' + (sel ? "#D14E14" : "#212529") + '" stroke-width="1.4"/><text x="' + n(c.x) + '" y="' + n(c.y + 2.2) + '" text-anchor="middle" font-size="6" font-weight="700" fill="' + (sel ? "#FFFFFF" : "#212529") + '">' + letter + '</text></g>');
+          if (item === "window") {
+            var cw = wallPoint(leg, sPt);
+            LM.push('<g class="plan-marker" data-m="window"><circle cx="' + n(cw.x) + '" cy="' + n(cw.y) + '" r="11" fill="transparent"/><circle cx="' + n(cw.x) + '" cy="' + n(cw.y) + '" r="7" fill="' + (sel ? "#EF6526" : "#FFFFFF") + '" stroke="' + (sel ? "#D14E14" : "#212529") + '" stroke-width="1.4"/><text x="' + n(cw.x) + '" y="' + n(cw.y + 2.2) + '" text-anchor="middle" font-size="6" font-weight="700" fill="' + (sel ? "#FFFFFF" : "#212529") + '">W</text></g>');
+            return;
+          }
+          /* S / H / F markers live OUTSIDE the plan, on a track just beyond
+             the wall, so they never cover a cabinet or its label. In
+             pointAt, negative d is outside the leg for every frame (above
+             an HT top leg, below an HB bottom run, right of a VR right
+             leg, left of a VL left leg). A thin leader line runs from the
+             marker to the centre of the appliance it marks. Dragging reads
+             only the along-leg coordinate, so the marker slides along this
+             outside track and its item moves with it, as before. */
+          var c = pointAt(leg, sPt, -12);
+          var a = pointAt(leg, sPt, 12);
+          LM.push('<line x1="' + n(c.x) + '" y1="' + n(c.y) + '" x2="' + n(a.x) + '" y2="' + n(a.y) + '" stroke="' + (sel ? "#EF6526" : "#ADB5BD") + '" stroke-width="0.7"/>');
+          LM.push('<g class="plan-marker" data-m="' + item + '"><circle cx="' + n(c.x) + '" cy="' + n(c.y) + '" r="8" fill="transparent"/><circle cx="' + n(c.x) + '" cy="' + n(c.y) + '" r="4.5" fill="' + (sel ? "#EF6526" : "#FFFFFF") + '" stroke="' + (sel ? "#D14E14" : "#212529") + '" stroke-width="1.1"/><text x="' + n(c.x) + '" y="' + n(c.y + 1.6) + '" text-anchor="middle" font-size="4.6" font-weight="700" fill="' + (sel ? "#FFFFFF" : "#212529") + '">' + letter + '</text></g>');
         }
         if (items.window) marker("window", items.window.leg, items.window.sPoint, "W");
         if (items.sink) marker("sink", items.sink.leg, items.sink.sPoint, "S");
@@ -1996,6 +2092,47 @@
         function legList(series, u) { return designList(line, series, clampU(u)).slice(); }
         function withCT(list) { if (!cooktop) return list; var c = list.slice(); c.splice(Math.floor(c.length / 2), 0, ctSku); return c; }
 
+        /* ---- Mandatory sink / dishwasher composer ----
+           The precomputed patterns silently drop the sink base on short
+           design spaces (e.g. baseBBC at 20 units returns B18+B18+BBC42).
+           The sink base (SB30) and the dishwasher space are MANDATORY:
+           they are composed first — corner (as selected) → SB30 → DW
+           space → fridge space → stove space — and only the space left
+           over becomes drawer base + fills (fills may shrink to zero). */
+        function hasSink(list) { for (var i = 0; i < list.length; i++) if (/^SB/.test(list[i])) return true; return false; }
+        function fillForIn(inches) {
+          var u = Math.floor(inches / 3);
+          if (u < 4) return []; /* under 12in: no cabinet — the plan flexes the neighbour wider */
+          return legList("baseFill", u);
+        }
+        function composeSinkBase(totalIn, o) {
+          /* o: { cornerSkus: [], fridgeIn, dwIn, stoveIn } — totalIn is the
+             leg length available to this composition (any corner footprint
+             owed to the OTHER leg already deducted by the caller).
+             A leg with no entered length gets no cabinets at all — the
+             mandatory items apply only to a real, dimensioned leg. */
+          if (!(totalIn > 0)) return [];
+          var cornerSkus = o.cornerSkus || [];
+          var cornerW = 0; cornerSkus.forEach(function (s) { cornerW += skuW(s); });
+          var space = totalIn - (o.fridgeIn || 0) - (o.dwIn || 0) - (o.stoveIn || 0);
+          var rest = space - cornerW - 30; /* SB30 is mandatory */
+          var list = ["SB30"];
+          if (rest >= 30) { list.push(line === "GOLA" ? "2DB18" : "3DB18"); rest -= 18; }
+          list = list.concat(fillForIn(rest));
+          cornerSkus.forEach(function (s) { list.push(s); });
+          return list;
+        }
+        function withDWText(list) {
+          /* Estimate text only: show the DW space right after the sink base. */
+          if (!list.length) return list;
+          var out = list.slice(), idx = -1;
+          for (var i = 0; i < out.length; i++) if (/^SB/.test(out[i])) { idx = i; break; }
+          if (idx >= 0) out.splice(idx + 1, 0, "DW");
+          else out.unshift("DW");
+          return out;
+        }
+        var dwWrapToB = false, baseFlipL = false, upperFlipL = false;
+
         var baseList = [], wallList = [];
         var tallList = designList(line, "tall" + tallH, unitsFor(tallL));
         var islandList = [], islandFt = 0, islandOn = ktype === "Island" || ktype === "L+Island";
@@ -2010,49 +2147,106 @@
         if (ktype === "Straight" || ktype === "Island") {
           var effB = clampU(unitsFor(baseL) - (fridgeUnits + 10 + dwUnits));
           baseList = legList("base" + (cooktop ? "CT" : ""), effB);
+          if (!hasSink(baseList)) {
+            /* Pattern dropped the sink on this short run — recompose with
+               the sink + DW mandatory (fridge + stove stay on this run). */
+            baseList = composeSinkBase(baseL * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 30 });
+            if (cooktop) baseList = withCT(baseList);
+          }
           wallList = legList("wall" + wallH + "F" + state.fridge, unitsFor(wallL) - winUnits);
           effBaseUnitsTotal = effB;
           denomFt = baseL + tallL;
           planLegs = [{ key: "Main", base: baseList, wall: wallList, ft: baseL }];
-          baseDesignStr = compressList(baseList);
+          baseDesignStr = compressList(state.dish === "Yes" ? withDWText(baseList) : baseList);
           wallDesignStr = compressList(wallList);
         } else if (ktype === "L-Shape" || ktype === "Galley" || ktype === "L+Island") {
           var Au = unitsFor(legAft), Bu = unitsFor(legBft);
           var fridgeCabSku2 = "W" + state.fridge + (wallH === "30" ? "15" : wallH === "36" ? "18" : "24") + "24";
           var bA2, bB2, wA2, wB2, effA2, effB2;
+          var dispA2 = null, dispB2 = null;
           if (ktype === "Galley") {
             /* Fridge at the end of run A (with the sink run); range alone on run B */
             bA2 = legList("base", Au - fridgeUnits - dwUnits);
+            if (!hasSink(bA2)) bA2 = composeSinkBase(legAft * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 0 });
             bB2 = withCT(legList("baseFill", Bu - 10));
             wA2 = legList("wallFill" + wallH, Au - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
             wB2 = legList("wallFill" + wallH, Bu); if (legBft > 0) wB2.push("W3018");
             effA2 = clampU(Au - fridgeUnits - dwUnits); effB2 = clampU(Bu - 10);
+            if (state.dish === "Yes") dispA2 = withDWText(bA2);
           } else {
-            /* Fridge at the START of leg A; range on leg B; leg B is measured
-               into the corner, so its fills are composed on what remains after
-               the corner cabinet's footprint on that leg (BBC 24in + 2in door
-               clearance, BER/BLS 33in; WBC 12in + 2in, WER/WDC 24in), rounded
-               down to the nearest 3in step. */
-            var baseFootIn2 = state.baseCorner === "BBC" ? 26 : 33;
-            var upFootIn2 = state.upperCorner === "WBC" ? 14 : 24;
-            var bBunits2 = Math.floor((legBft * 12 - baseFootIn2 - 30) / 3);
-            var wBunits2 = Math.floor((legBft * 12 - upFootIn2) / 3);
-            bA2 = legList("base" + state.baseCorner, Au - fridgeUnits - dwUnits);
-            bB2 = withCT(legList("baseFill", bBunits2));
-            wA2 = legList("wallFill" + wallH + "C" + state.upperCorner, Au - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
-            wB2 = legList("wallFill" + wallH, wBunits2); if (legBft > 0) wB2.push("W3018");
-            effA2 = clampU(Au - fridgeUnits - dwUnits); effB2 = clampU(bBunits2);
+            /* L / L+Island — composed case by case from the actual leg
+               lengths. Fridge at the START of leg A; range on leg B (fridge
+               and stove on different legs). The sink base + DW are
+               mandatory on leg A. The blind corner (BBC, and the blind WBC
+               above it) defaults to leg A; if flipping it onto leg B is
+               what makes fridge + sink + DW + corner fit on leg A — or
+               fits clearly better — it flips: leg A then takes the 24in +
+               2in clearance footprint deduction and leg B carries the
+               corner cabinet in its own composition (priced once). If leg
+               A still cannot fit the DW, the DW wraps around the corner
+               to sit immediately after the corner on leg B. */
+            var lenAin2 = legAft * 12, lenBin2 = legBft * 12;
+            var fridgeIn2 = fridgeUnits * 3, dwIn2 = dwUnits * 3;
+            var cbSku2 = state.baseCorner === "BBC" ? "BBC42" : state.baseCorner + "33";
+            var cbOnA2 = state.baseCorner === "BBC" ? 42 : 33;   /* footprint on the leg carrying the BBC/BLS/BER */
+            var cbOnB2 = state.baseCorner === "BBC" ? 26 : 33;   /* footprint owed by the other leg */
+            var ucSku2 = state.upperCorner === "WBC" ? "WBC27" + wallH : state.upperCorner === "WER" ? "WER24" + wallH : "WDC24" + wallH;
+            var ucOnA2 = state.upperCorner === "WBC" ? 27 : 24;
+            var ucOnB2 = state.upperCorner === "WBC" ? 14 : 24;
+            var canFlip2 = state.baseCorner === "BBC" && legBft > 0; /* BLS/BER are symmetric 33+33 — flipping changes nothing */
+            function evalL2(flip) {
+              var footA = flip ? cbOnB2 : 0;         /* deduction on A when the corner sits on B */
+              var footB = flip ? cbOnA2 : cbOnB2;    /* deduction on B either way */
+              var needA = 30 + (flip ? 0 : cbOnA2);  /* SB30 + corner if carried */
+              var dwA = lenAin2 - fridgeIn2 - dwIn2 - footA >= needA;
+              var dwWrap = false;
+              if (!dwA) dwWrap = lenAin2 - fridgeIn2 - footA >= needA && lenBin2 - footB - 30 - dwIn2 >= 0;
+              return { flip: flip, dwA: dwA, dwWrap: dwWrap, ok: dwA || dwWrap };
+            }
+            var planL2 = evalL2(false);
+            if (!planL2.dwA && canFlip2) { var altL2 = evalL2(true); if (altL2.dwA) planL2 = altL2; }
+            if (!planL2.ok && canFlip2) { var alt2L2 = evalL2(true); if (alt2L2.ok) planL2 = alt2L2; }
+            if (!planL2.ok) { planL2 = evalL2(planL2.flip); planL2.dwWrap = state.dish === "Yes" && legBft > 0; planL2.ok = true; }
+            if (legAft <= 0) { planL2.flip = false; planL2.dwWrap = false; }
+            baseFlipL = planL2.flip; dwWrapToB = !!planL2.dwWrap;
+            upperFlipL = baseFlipL && state.upperCorner === "WBC";
+            var footA2 = baseFlipL ? cbOnB2 : 0, footB2 = baseFlipL ? cbOnA2 : cbOnB2;
+            if (legAft <= 0) footB2 = 0; /* no leg A entered — no corner footprint owed */
+            bA2 = composeSinkBase(lenAin2 - footA2, { cornerSkus: baseFlipL ? [] : [cbSku2], fridgeIn: fridgeIn2, dwIn: dwWrapToB ? 0 : dwIn2, stoveIn: 0 });
+            var bBfillIn2 = Math.floor((lenBin2 - footB2 - 30 - (dwWrapToB ? dwIn2 : 0)) / 3) * 3;
+            bB2 = withCT(fillForIn(bBfillIn2));
+            if (baseFlipL) bB2 = [cbSku2].concat(bB2);
+            if (upperFlipL) {
+              wA2 = legList("wallFill" + wallH, Math.floor((lenAin2 - ucOnB2) / 3) - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
+              var wBfillU2 = Math.floor((lenBin2 - ucOnA2) / 3);
+              wB2 = [ucSku2].concat(legList("wallFill" + wallH, wBfillU2)); if (legBft > 0) wB2.push("W3018");
+            } else {
+              var wBunits2 = Math.floor((legBft * 12 - ucOnB2) / 3);
+              wA2 = legList("wallFill" + wallH + "C" + state.upperCorner, Au - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
+              wB2 = legList("wallFill" + wallH, wBunits2); if (legBft > 0) wB2.push("W3018");
+            }
+            effA2 = clampU(Au - fridgeUnits - (dwWrapToB ? 0 : dwUnits)); effB2 = clampU(bBfillIn2 / 3);
+            if (state.dish === "Yes") {
+              if (dwWrapToB) { dispA2 = bA2; dispB2 = ["DW"].concat(bB2); }
+              else dispA2 = withDWText(bA2);
+            }
           }
           baseList = bA2.concat(bB2); wallList = wA2.concat(wB2);
           effBaseUnitsTotal = effA2 + effB2;
           baseL = legAft + legBft; wallL = legAft + legBft;
           denomFt = baseL + tallL;
-          planLegs = [{ key: "A", base: bA2, wall: wA2, ft: legAft }, { key: "B", base: bB2, wall: wB2, ft: legBft }];
-          baseDesignStr = legDesignStr([["A", bA2], ["B", bB2]]);
+          planLegs = [{ key: "A", base: bA2, wall: wA2, ft: legAft }, { key: "B", base: bB2, wall: wB2, ft: legBft, dwWrap: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL }];
+          baseDesignStr = legDesignStr([["A", dispA2 || bA2], ["B", dispB2 || bB2]]);
           wallDesignStr = legDesignStr([["A", wA2], ["B", wB2]]);
         } else if (ktype === "U-Shape") {
           var Au3 = unitsFor(legAft), Bu3 = unitsFor(legBft), Cu3 = unitsFor(legCft);
           var bB3 = legList("base" + state.baseCorner + state.baseCorner, Bu3 - dwUnits);
+          if (!hasSink(bB3)) {
+            /* Sink leg is the back wall (B) with a corner at each end —
+               recompose so SB30 + DW survive at any width. */
+            var cbSku3 = state.baseCorner === "BBC" ? "BBC42" : state.baseCorner + "33";
+            bB3 = composeSinkBase(legBft * 12, { cornerSkus: [cbSku3, cbSku3], fridgeIn: 0, dwIn: dwUnits * 3, stoveIn: 0 });
+          }
           /* Legs A and C are measured into the back-wall corners: their fills
              are composed on what remains after the corner footprint at the
              junction (fridge at A's open end, stove zone on C). */
@@ -2073,7 +2267,7 @@
           baseL = legAft + legBft + legCft; wallL = baseL;
           denomFt = baseL + tallL;
           planLegs = [{ key: "A", base: bA3, wall: wA3, ft: legAft }, { key: "B", base: bB3, wall: wB3, ft: legBft }, { key: "C", base: bC3, wall: wC3, ft: legCft }];
-          baseDesignStr = legDesignStr([["A", bA3], ["B", bB3], ["C", bC3]]);
+          baseDesignStr = legDesignStr([["A", bA3], ["B", state.dish === "Yes" ? withDWText(bB3) : bB3], ["C", bC3]]);
           wallDesignStr = legDesignStr([["A", wA3], ["B", wB3], ["C", wC3]]);
         }
         if (islandOn) {
@@ -2157,7 +2351,7 @@
           tallDesign: compressList(tallList),
           ktype: ktype, islandOn: islandOn, islandFt: islandFt, islandAmt: islandAmt, asmIsland: asmIsland,
           islandDesign: compressList(islandList), planLegs: planLegs, tallListRaw: tallList, islandListRaw: islandList, winW: winW,
-          fridgeW: parseInt(state.fridge, 10), cooking: state.cooking, dish: state.dish, windowOn: state.window
+          fridgeW: parseInt(state.fridge, 10), dwWrapToB: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL, cooking: state.cooking, dish: state.dish, windowOn: state.window
         };
         render(lastResult);
       }
