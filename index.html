@@ -483,40 +483,13 @@
       /* Wall key: small schematic showing which wall is which */
       /* Placement: a slider bar (same pill track as the Measure bar)
          picks the item, the item's panel below it offers its walls as a
-         segmented choice, and the mini floor plan sits UNDER those
-         controls — thin wall lines, a pale cabinet-depth strip along
-         each wall with flush squared corners, lettered wall badges, and
-         frosted item markers seated inside the strip. Flow: pick an
-         item, pick its wall, then see it in the layout underneath. */
-      .place-map-wrap { margin: 0 0 14px; }
-      /* The mini layout is the LAST block in the Measurements card —
-         every design-shaping control sits above it — so the wrap needs
-         no trailing gap of its own inside the card. */
-      .place-map-wrap:last-child { margin-bottom: 0; }
-      #place-map {
-        margin-top: 14px;
-        border-radius: 16px; padding: 8px 6px 2px;
-        background: linear-gradient(165deg, rgba(255,255,255,.85), rgba(246,243,240,.75));
-        border: 1px solid rgba(255,255,255,.92);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 10px 24px rgba(33,37,41,.07);
-      }
-      #place-map svg { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; }
-      #place-map svg text { font-family: inherit; }
-      #place-map .pm-stripfill { fill: #FFFFFF; }
-      #place-map .pm-tick { stroke: rgba(134,142,150,.38); stroke-width: .8; }
-      #place-map .pm-outline { fill: none; stroke: #C3CBD2; stroke-width: 1; }
-      #place-map .pm-wallline { fill: none; stroke: #343A40; stroke-width: 2.6; stroke-linecap: butt; stroke-linejoin: miter; }
-      #place-map .pm-badge { fill: #FFFFFF; stroke: rgba(33,37,41,.16); filter: drop-shadow(0 1px 2px rgba(33,37,41,.20)); }
-      #place-map .pm-badge-t { fill: #343A40; font-size: 9.5px; font-weight: 700; text-anchor: middle; }
-      #place-map .pm-isl { fill: #FFFFFF; stroke: #C3CBD2; }
-      #place-map .pm-isl-in { fill: none; stroke: rgba(134,142,150,.45); stroke-width: .8; }
-      #place-map .pm-isl-t { fill: #98A2AB; font-size: 6.5px; font-weight: 700; text-anchor: middle; letter-spacing: 1.6px; }
-      #place-map .pm-chip rect { fill: rgba(255,255,255,.94); stroke: #D8DDE2; filter: drop-shadow(0 2px 5px rgba(33,37,41,.16)); }
-      #place-map .pm-chip text { fill: #343A40; font-size: 9.5px; font-weight: 700; }
-      #place-map .pm-chip .pm-ico { fill: none; stroke: #6C757D; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-      #place-map .pm-chip.sel rect { fill: #EF6526; stroke: #EF6526; filter: drop-shadow(0 3px 8px rgba(239,101,38,.40)); }
-      #place-map .pm-chip.sel text { fill: #fff; }
-      #place-map .pm-chip.sel .pm-ico { stroke: #fff; }
+         segmented choice. The block lives in its own card immediately
+         before the final 2D design — all form steps are completed first,
+         then placement, then the design it feeds. Picking a wall updates
+         state.picks, the final plan and the estimate in the same step;
+         the final plan below is the visual confirmation. */
+      .card-placement { grid-column: 1; }
+      .place-wrap { margin: 0; }
       /* Placement slider: the Measure-bar pill track as ONE row of
          equal-width segments — every item the same width, evenly spaced,
          never wrapping or scattering onto a second row. Five items max
@@ -822,19 +795,6 @@
             <button type="button" data-value="36" aria-pressed="true">36″</button>
           </div>
         </div>
-        <div class="place-map-wrap">
-          <div class="chips seg place-slider" id="place-slider" role="group" aria-label="Item to place — pick an item, then pick its wall"></div>
-          <div class="measure-panel" id="place-panel" hidden>
-            <div class="mp-main">
-              <span class="mp-label" id="place-panel-label">Item — on wall</span>
-              <div class="seg" role="group" aria-labelledby="place-panel-label" id="place-wall-seg"></div>
-            </div>
-            <p class="seg-note" id="place-panel-note" hidden></p>
-          </div>
-          <p class="place-hint" id="place-hint" aria-live="polite"></p>
-          <div id="place-map" role="img" aria-label="Kitchen layout — the walls are lettered A, B and C, and each item sits on its wall"></div>
-        </div>
-
       </section>
 
       <section class="card" id="card-corner" aria-labelledby="h-corner">
@@ -1173,6 +1133,21 @@
         <p class="copied" id="copied-msg" role="status"></p>
       </section>
 
+      <section class="card card-placement" aria-labelledby="h-placement">
+        <h2 id="h-placement">Placement</h2>
+        <div class="place-wrap">
+          <div class="chips seg place-slider" id="place-slider" role="group" aria-label="Item to place — pick an item, then pick its wall"></div>
+          <div class="measure-panel" id="place-panel" hidden>
+            <div class="mp-main">
+              <span class="mp-label" id="place-panel-label">Item — on wall</span>
+              <div class="seg" role="group" aria-labelledby="place-panel-label" id="place-wall-seg"></div>
+            </div>
+            <p class="seg-note" id="place-panel-note" hidden></p>
+          </div>
+          <p class="place-hint" id="place-hint" aria-live="polite"></p>
+        </div>
+      </section>
+
       <section class="card card-plan" aria-labelledby="h-plan">
         <h2 id="h-plan">2D Design — Measure on the Plan</h2>
         <p class="seg-note plan-help">Tap an item chip, then drag its marker along the wall — or tap the measurement bubble and type the exact inches. Positions are measured in inches along each leg from that leg's start, as drawn. Items never touched follow the functional layout automatically.</p>
@@ -1309,26 +1284,14 @@
       }
       function refreshPickers() { renderPlace(); }
 
-      /* ---- Placement: mini plan + item slider + per-item wall panel ----
-         The mini layout is a small floor plan in the main plan's visual
-         language: thin wall lines, a pale cabinet-depth strip along each
-         wall joined in one outline so every corner is a flush square,
-         lettered wall badges, and one frosted marker per item seated
-         inside its wall's strip. The slider below picks the item (the
-         Measure bar's sliding-pill track); the item's panel then offers
-         "On wall" as a segmented choice of exactly the walls that item
-         can take. Choosing a wall updates state.picks, the marker, the
-         plan and the estimate in the same step. */
+      /* ---- Placement: item slider + per-item wall panel ----
+         The slider picks the item (the Measure bar's sliding-pill
+         track); the item's panel then offers "On wall" as a segmented
+         choice of exactly the walls that item can take. Choosing a wall
+         updates state.picks, the final 2D plan and the estimate in the
+         same step — the final plan below is the visual confirmation of
+         every placement. */
       var placeSel = null;
-      /* Items the user has actually placed (selected in the slider).
-         The mini layout starts as bare lettered walls: a marker is
-         drawn only once its item has been selected, and it pops in in
-         the same update as the selection, on the wall the item's panel
-         shows as picked (its current pick, default included). Picking
-         another wall in the panel moves it. This is display only — the
-         design and estimate always use the automatic placements in
-         state.picks regardless. */
-      var placeShown = {};
       var PLACE_ITEMS = [
         { id: "window", label: "Window", icon: '<rect x="4" y="3" width="16" height="18"/><path d="M12 3v18M4 12h16"/>' },
         { id: "fridge", label: "Fridge", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M6 10h12M9 6v2M9 13v3"/>' },
@@ -1337,7 +1300,6 @@
         { id: "pantry", label: "Pantry", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M12 3v18"/>' }
       ];
       var PLACE_LABEL = { window: "Window", fridge: "Fridge", sink: "Sink", stove: "Stove", pantry: "Pantry" };
-      var CHIP_W = { window: 62, fridge: 60, sink: 50, stove: 56, pantry: 62 };
       function placeItemVisible(it) {
         /* A placement entry exists only for an item that is actually in
            the design: the Window only when switched on, the Pantry only
@@ -1352,8 +1314,8 @@
            that HAS an island (the "Island" type and L+Island) — but
            only for the Sink and the Stove. The Fridge, the Window and
            the Pantry always stay on a wall. (placeWallOffers also
-           requires the type's mini-plan geometry to carry an island
-           block, so no other type can ever offer it.) */
+           requires the kitchen type to have an island, so no other
+           type can ever offer it.) */
         if (wall === "Island") return item === "sink" || item === "stove";
         if (kt === "Straight") return wall === "A";
         if (kt === "Island") return wall === "A";
@@ -1381,161 +1343,14 @@
         return offers.indexOf(cur) >= 0 ? cur : offers[0];
       }
       function placeGeom(kt) {
-        function W(x1, y1, x2, y2, inx, iny, pf) { return { x1: x1, y1: y1, x2: x2, y2: y2, inx: inx, iny: iny, pf: pf }; }
-        var walls = {}, isl = null, wallPath = "", outline = "";
-        if (kt === "U-Shape") {
-          walls.B = W(66, 36, 254, 36, 0, 1, 0.5); walls.A = W(66, 36, 66, 158, 1, 0, 1); walls.C = W(254, 36, 254, 158, -1, 0, 1);
-          wallPath = "M66 158V36H254V158";
-          outline = "M66 36H254V158H228V62H92V158H66Z";
-        } else if (kt === "L-Shape" || kt === "L+Island") {
-          walls.A = W(36, 36, 284, 36, 0, 1, 0); walls.B = W(284, 36, 284, 158, -1, 0, 1);
-          wallPath = "M36 36H284V158";
-          outline = "M36 36H284V158H258V62H36Z";
-          if (kt === "L+Island") isl = { x: 98, y: 104, w: 104, h: 34 };
-        } else if (kt === "Galley") {
-          walls.A = W(66, 36, 254, 36, 0, 1, 0); walls.B = W(66, 154, 254, 154, 0, -1, 1);
-          wallPath = "M66 36H254M66 154H254";
-          outline = "M66 36H254V62H66ZM66 128H254V154H66Z";
-        } else {
-          walls.A = W(66, 44, 254, 44, 0, 1, 0);
-          wallPath = "M66 44H254";
-          outline = "M66 44H254V70H66Z";
-          if (kt === "Island") isl = { x: 100, y: 102, w: 120, h: 36 };
-        }
-        return { walls: walls, island: isl, wallPath: wallPath, outline: outline };
-      }
-      var PM_DEPTH = 26;
-      function wallLen(w) { return Math.sqrt((w.x2 - w.x1) * (w.x2 - w.x1) + (w.y2 - w.y1) * (w.y2 - w.y1)); }
-      /* Named pmWallPoint, NOT wallPoint: the main 2D plan further down
-         declares its own wallPoint(leg, s). Two same-named top-level
-         function declarations collide — the later one wins for BOTH
-         call sets, so every mini-plan point came back NaN (console
-         errors, chips stacked off-plan and clipped, corners broken). */
-      function pmWallPoint(w, s, off) {
-        var len = wallLen(w), ux = (w.x2 - w.x1) / len, uy = (w.y2 - w.y1) / len;
-        return { x: w.x1 + ux * s + w.inx * off, y: w.y1 + uy * s + w.iny * off };
-      }
-      function stripRect(w) {
-        if (w.y1 === w.y2) return { x: Math.min(w.x1, w.x2), y: w.iny > 0 ? w.y1 : w.y1 - PM_DEPTH, w: Math.abs(w.x2 - w.x1), h: PM_DEPTH };
-        return { x: w.inx > 0 ? w.x1 : w.x1 - PM_DEPTH, y: Math.min(w.y1, w.y2), w: PM_DEPTH, h: Math.abs(w.y2 - w.y1) };
-      }
-      /* Chip widths for one wall (or the island), shrunk proportionally
-         when the items on it are wider than the wall itself — the drawn
-         B leg of the L is only 122 units, so Fridge + Stove + Pantry
-         (184 units at full width) can never fit it unscaled. */
-      function fitWidths(list, avail) {
-        var ws = {}, tot = 0;
-        list.forEach(function (it) { ws[it] = CHIP_W[it]; tot += CHIP_W[it]; });
-        tot += Math.max(0, list.length - 1) * 3;
-        if (tot > avail && tot > 0) {
-          var f = avail / tot;
-          list.forEach(function (it) { ws[it] = Math.max(30, Math.round(CHIP_W[it] * f * 10) / 10); });
-        }
-        return ws;
-      }
-      /* Lay a wall's markers along its strip: flow items at spread
-         fractions, the pantry at the wall's end; centres are clamped and
-         pushed apart so markers never overlap or spill past an end. */
-      function layoutWall(w, list) {
-        var len = wallLen(w);
-        var ws = fitWidths(list, len - 2);
-        var flow = list.filter(function (it) { return it !== "pantry"; });
-        var fr = flow.length <= 1 ? [0.5] : flow.length === 2 ? [0.32, 0.68] : flow.length === 3 ? [0.22, 0.5, 0.78] : flow.length === 4 ? [0.14, 0.38, 0.62, 0.86] : [0.1, 0.3, 0.5, 0.7, 0.9];
-        var items = flow.map(function (it, i) { return { it: it, s: fr[Math.min(i, fr.length - 1)] * len, hw: ws[it] / 2, w: ws[it] }; });
-        if (list.indexOf("pantry") >= 0) items.push({ it: "pantry", s: w.pf * len, hw: ws.pantry / 2, w: ws.pantry });
-        items.sort(function (a, b) { return a.s - b.s; });
-        for (var i = 0; i < items.length; i++) {
-          var lo = items[i].hw + 1, hi = len - items[i].hw - 1;
-          if (i > 0) lo = Math.max(lo, items[i - 1].s + items[i - 1].hw + items[i].hw + 3);
-          items[i].s = Math.max(items[i].s, lo);
-          if (items[i].s > hi) items[i].s = hi;
-        }
-        for (var j = items.length - 2; j >= 0; j--) {
-          var maxS = items[j + 1].s - items[j + 1].hw - items[j].hw - 3;
-          if (items[j].s > maxS) items[j].s = maxS;
-        }
-        /* Final safety clamp: whatever the passes above produced, a
-           centre never leaves the wall — the backward pass alone could
-           push the first item to a negative s on an overcrowded wall,
-           which rendered its chip half outside the top of the map. */
-        for (var k2 = 0; k2 < items.length; k2++) {
-          var lo2 = items[k2].hw + 1, hi2 = len - items[k2].hw - 1;
-          if (items[k2].s < lo2) items[k2].s = lo2;
-          if (items[k2].s > hi2) items[k2].s = hi2;
-        }
-        return items.map(function (o) { var p = pmWallPoint(w, o.s, PM_DEPTH / 2); return { it: o.it, x: p.x, y: p.y, w: o.w }; });
-      }
-      function pmChip(it, cx, cy, wOpt, vert) {
-        var w = wOpt || CHIP_W[it], meta = null;
-        PLACE_ITEMS.forEach(function (m) { if (m.id === it) meta = m; });
-        /* Shrunk chips (crowded wall): when the pill is too narrow for
-           icon + label at full size, drop the icon and centre the label
-           in a smaller size, so the text stays inside the pill instead
-           of spilling past its edge. */
-        var ico = "", tx, tAttr = "";
-        if (w >= 27 + PLACE_LABEL[it].length * 5) {
-          ico = '<g class="pm-ico" transform="translate(' + (-w / 2 + 5) + ', -6) scale(0.5)">' + (meta ? meta.icon : "") + "</g>";
-          tx = -w / 2 + 21;
-        } else {
-          tx = 0; tAttr = ' text-anchor="middle" style="font-size:8px"';
-        }
-        /* Direction rule: a chip is aligned to its wall — on a vertical
-           wall the pill rotates -90 so it runs along that wall, exactly
-           like the labels on the vertical legs of the main 2D plan. */
-        return '<g class="pm-chip' + (placeSel === it ? " sel" : "") + '" data-item="' + it + '" transform="translate(' + Math.round(cx * 10) / 10 + "," + Math.round(cy * 10) / 10 + ")" + (vert ? " rotate(-90)" : "") + '"><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="10"/>' + ico + '<text x="' + tx + '" y="3.2"' + tAttr + ">" + PLACE_LABEL[it] + "</text></g>";
-      }
-      function renderPlaceMap() {
-        var host = $("place-map");
-        if (!host) return;
-        if (placeSel && !placeItemVisible(placeSel)) placeSel = null;
-        var kt = state.ktype, g = placeGeom(kt);
-        var onWall = {};
-        ["window", "fridge", "sink", "stove", "pantry"].forEach(function (it) {
-          if (!placeItemVisible(it)) return;
-          /* Show-after-selection: until the user selects the item in
-             the slider, the layout stays bare — no marker is drawn for
-             it. Once selected, the marker sits on the same wall the
-             item's panel shows as picked. */
-          if (!placeShown[it]) return;
-          var w = placePickEffective(it);
-          (onWall[w] = onWall[w] || []).push(it);
-        });
-        var out = ['<svg viewBox="0 0 320 190" role="img" aria-label="Kitchen layout — walls and item placement">'];
-        Object.keys(g.walls).forEach(function (k) {
-          var w = g.walls[k], r = stripRect(w);
-          out.push('<rect class="pm-stripfill" x="' + r.x + '" y="' + r.y + '" width="' + r.w + '" height="' + r.h + '"/>');
-          var len = wallLen(w);
-          for (var s = 30; s < len - 8; s += 30) {
-            var p1 = pmWallPoint(w, s, 1.5), p2 = pmWallPoint(w, s, PM_DEPTH - 1.5);
-            out.push('<line class="pm-tick" x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '"/>');
-          }
-        });
-        out.push('<path class="pm-outline" d="' + g.outline + '"/>');
-        if (g.island) {
-          var r0 = g.island;
-          out.push('<rect class="pm-isl" x="' + r0.x + '" y="' + r0.y + '" width="' + r0.w + '" height="' + r0.h + '" rx="5"/><rect class="pm-isl-in" x="' + (r0.x + 4) + '" y="' + (r0.y + 4) + '" width="' + (r0.w - 8) + '" height="' + (r0.h - 8) + '" rx="3"/><text class="pm-isl-t" x="' + (r0.x + r0.w / 2) + '" y="' + (r0.y + 10.5) + '">ISLAND</text>');
-        }
-        out.push('<path class="pm-wallline" d="' + g.wallPath + '"/>');
-        Object.keys(g.walls).forEach(function (k) {
-          var w = g.walls[k], bp = pmWallPoint(w, wallLen(w) / 2, -17);
-          out.push('<g><circle class="pm-badge" cx="' + bp.x + '" cy="' + bp.y + '" r="9.5"/><text class="pm-badge-t" x="' + bp.x + '" y="' + (bp.y + 3.5) + '">' + k + "</text></g>");
-        });
-        Object.keys(onWall).forEach(function (k) {
-          var list = onWall[k];
-          if (k === "Island" && g.island) {
-            var wsI = fitWidths(list, g.island.w - 6);
-            var tot = 0; list.forEach(function (it) { tot += wsI[it]; }); tot += (list.length - 1) * 6;
-            var cxI = g.island.x + g.island.w / 2 - tot / 2, cyI = g.island.y + g.island.h / 2 + 4;
-            list.forEach(function (it) { out.push(pmChip(it, cxI + wsI[it] / 2, cyI, wsI[it])); cxI += wsI[it] + 6; });
-            return;
-          }
-          var w = g.walls[k];
-          if (!w) return;
-          var vert = w.x1 === w.x2;
-          layoutWall(w, list).forEach(function (o) { out.push(pmChip(o.it, o.x, o.y, o.w, vert)); });
-        });
-        out.push("</svg>");
-        host.innerHTML = out.join("");
+        /* Which walls exist for this kitchen type, and whether it has
+           an island — the only geometry the placement offers need. */
+        var walls = {};
+        if (kt === "U-Shape") { walls.A = true; walls.B = true; walls.C = true; }
+        else if (kt === "L-Shape" || kt === "L+Island" || kt === "Galley") { walls.A = true; walls.B = true; }
+        else { walls.A = true; }
+        var hasIsland = (kt === "Island" || kt === "L+Island");
+        return { walls: walls, island: hasIsland ? true : null };
       }
       /* Slider layout: same sliding pill as segLayout; the track is a
          single row of equal-width segments, so the pill simply slides
@@ -1610,20 +1425,14 @@
         h.textContent = canIsl ? "Pick a wall or the island for the " + PLACE_LABEL[placeSel] : "Pick a wall for the " + PLACE_LABEL[placeSel];
       }
       function renderPlace() {
-        renderPlaceMap();
         syncPlaceSlider(false);
         renderPlacePanel();
         updatePlaceHint();
       }
       function selectPlace(item) {
         placeSel = item;
-        /* Selecting the item places it: its marker pops into the mini
-           layout in this same update, on its current wall — the panel
-           below already shows that wall as picked, so the layout must
-           agree with it immediately, not wait for a second tap on the
-           already-highlighted wall button. */
-        placeShown[item] = true;
-        renderPlaceMap();
+        /* Selecting the item shows its panel in this same update, with
+           its current wall already picked — no second tap needed. */
         syncPlaceSlider(true);
         renderPlacePanel();
         updatePlaceHint();
@@ -1647,9 +1456,6 @@
             var w = b.getAttribute("data-value");
             var changed = state.picks[placeSel] !== w;
             state.picks[placeSel] = w;
-            /* The marker is already on the layout from the selection;
-               picking a wall moves it to the picked wall. */
-            placeShown[placeSel] = true;
             renderPlace();
             if (changed) calc();
           });
@@ -2367,7 +2173,7 @@
       function ktypeInit() {
         var btns = document.querySelectorAll(".ktype-card");
         for (var i = 0; i < btns.length; i++) {
-          btns[i].addEventListener("click", function () { ktypeSet(this.getAttribute("data-value")); state.picks = picksDefault(state.ktype); placeShown = {}; refreshKType(); calc(); });
+          btns[i].addEventListener("click", function () { ktypeSet(this.getAttribute("data-value")); state.picks = picksDefault(state.ktype); refreshKType(); calc(); });
         }
         ktypeSet(state.ktype);
       }
@@ -4367,7 +4173,6 @@
         measure = { sink: null, window: null, hood: null };
         measureSel = null;
         placeSel = null;
-        placeShown = {};
         $("measure-panel").hidden = true;
         discInput.value = "";
         $("chk-hst").checked = false;
