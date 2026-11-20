@@ -402,7 +402,9 @@
       .seg-ktype button { font-size: 13.5px; padding: 8px 2px; }
       #legs-block[hidden], #island-row[hidden], #legC-row[hidden] { display: none; }
       .measure.hide-run > .field-label, .measure.hide-run > .stepper { display: none; }
-      .measure.hide-run { margin-bottom: 0; }
+      /* The hidden-run row keeps the standard 20px row margin from
+         .measure: zeroing it let the next row's stepper ride up into
+         this row's segmented bar. */
       .measure.hide-run .sub-field { margin-top: 0; }
       .card-plan { grid-column: 1; }
       .plan-help { margin: -6px 0 14px; line-height: 1.5; }
@@ -479,24 +481,46 @@
       /* Wall pickers, drawer rows, crown/profile rows */
       #profile-row[hidden], #riser-row[hidden] { display: none; }
       /* Wall key: small schematic showing which wall is which */
-      /* Placement map: the mini layout IS the item-placement control —
-         walls carry their A/B/C badges, items sit on their wall as
-         chips; tap a chip, then tap a wall to move it. */
+      /* Placement: a mini floor plan in the same visual language as the
+         main 2D plan — thin wall lines, a pale cabinet-depth strip along
+         each wall with flush squared corners, lettered wall badges, and
+         frosted item markers seated inside the strip. Below it, a slider
+         bar (same pill track as the Measure bar) picks the item, and the
+         item's panel offers its walls as a segmented choice. */
       .place-map-wrap { margin: 0 0 14px; }
+      #place-map {
+        border-radius: 16px; padding: 8px 6px 2px;
+        background: linear-gradient(165deg, rgba(255,255,255,.85), rgba(246,243,240,.75));
+        border: 1px solid rgba(255,255,255,.92);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 10px 24px rgba(33,37,41,.07);
+      }
       #place-map svg { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; }
       #place-map svg text { font-family: inherit; }
-      #place-map .pm-strip { fill: var(--surface); stroke: var(--line); }
-      #place-map .pm-wall { cursor: pointer; }
-      #place-map .pm-wall:hover .pm-strip { stroke: #E85D26; }
-      #place-map .pm-badge { fill: var(--ink); }
-      #place-map .pm-badge-t { fill: #fff; font-size: 10px; font-weight: 700; text-anchor: middle; }
-      #place-map .pm-isl { fill: #FFE8D6; stroke: #E8A87C; }
-      #place-map .pm-isl-t { fill: #B4551F; font-size: 8.5px; font-weight: 700; text-anchor: middle; letter-spacing: .5px; }
-      #place-map .pm-chip { cursor: pointer; }
-      #place-map .pm-chip rect { fill: var(--surface); stroke: var(--line); filter: drop-shadow(0 2px 4px rgba(20, 24, 30, .12)); }
-      #place-map .pm-chip text { fill: var(--ink); font-size: 9.5px; font-weight: 700; text-anchor: middle; }
-      #place-map .pm-chip.sel rect { fill: #E85D26; stroke: #E85D26; filter: drop-shadow(0 3px 7px rgba(232, 93, 38, .35)); }
+      #place-map .pm-stripfill { fill: #FFFFFF; }
+      #place-map .pm-tick { stroke: rgba(134,142,150,.38); stroke-width: .8; }
+      #place-map .pm-outline { fill: none; stroke: #C3CBD2; stroke-width: 1; }
+      #place-map .pm-wallline { fill: none; stroke: #343A40; stroke-width: 2.6; stroke-linecap: butt; stroke-linejoin: miter; }
+      #place-map .pm-badge { fill: #FFFFFF; stroke: rgba(33,37,41,.16); filter: drop-shadow(0 1px 2px rgba(33,37,41,.20)); }
+      #place-map .pm-badge-t { fill: #343A40; font-size: 9.5px; font-weight: 700; text-anchor: middle; }
+      #place-map .pm-isl { fill: #FFFFFF; stroke: #C3CBD2; }
+      #place-map .pm-isl-in { fill: none; stroke: rgba(134,142,150,.45); stroke-width: .8; }
+      #place-map .pm-isl-t { fill: #98A2AB; font-size: 6.5px; font-weight: 700; text-anchor: middle; letter-spacing: 1.6px; }
+      #place-map .pm-chip rect { fill: rgba(255,255,255,.94); stroke: #D8DDE2; filter: drop-shadow(0 2px 5px rgba(33,37,41,.16)); }
+      #place-map .pm-chip text { fill: #343A40; font-size: 9.5px; font-weight: 700; }
+      #place-map .pm-chip .pm-ico { fill: none; stroke: #6C757D; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+      #place-map .pm-chip.sel rect { fill: #EF6526; stroke: #EF6526; filter: drop-shadow(0 3px 8px rgba(239,101,38,.40)); }
       #place-map .pm-chip.sel text { fill: #fff; }
+      #place-map .pm-chip.sel .pm-ico { stroke: #fff; }
+      /* Placement slider: the Measure-bar pill track, wrapped to two rows
+         so all six items stay readable at phone width. */
+      .place-slider { flex-wrap: wrap; margin: 12px 0 0; max-width: none; }
+      .place-slider .chip { flex: 1 1 28%; font-size: 12.5px; gap: 4px; padding: 8px 2px; min-width: 0; }
+      .place-slider .chip svg { width: 14px; height: 14px; }
+      #place-panel { margin: 12px 0 0; }
+      #place-panel[hidden] { display: none; }
+      #place-wall-seg { flex: 1 1 170px; max-width: 320px; }
+      #place-wall-seg button { font-size: 13.5px; }
+      .place-hint { font-size: 13px; color: var(--muted); margin: 10px 2px 0; min-height: 18px; }
       #drawer-rows[hidden] { display: none; }
       .picker-row { display: grid; grid-template-columns: 1fr minmax(150px, 210px); gap: 14px; align-items: center; padding: 7px 0; }
       .picker-row .field-label { margin: 0; font-size: 14.5px; }
@@ -542,6 +566,40 @@
       </div>
       <div class="splash-bar" aria-hidden="true"><i></i></div>
     </div>
+
+    <script>
+      /* Splash dismissal is armed HERE, in its own tiny script that runs
+         before the main app script is even parsed. The main script's own
+         splash handler sits at the very end of a 1.6MB script, after every
+         init call — any runtime failure during init (or a parse failure
+         anywhere in that script) meant the handler was never registered
+         and the splash stayed up forever, tap included. This guard cannot
+         be blocked by the app: it hides the splash on DOMContentLoaded,
+         on window load, on tap, and on a 2.5s fallback timer, whichever
+         comes first. */
+      (function () {
+        var splashEl = document.getElementById("splash");
+        if (!splashEl) return;
+        var splashDone = false;
+        function hideSplashEarly() {
+          if (splashDone) return;
+          splashDone = true;
+          splashEl.classList.add("splash-done");
+          setTimeout(function () {
+            if (splashEl && splashEl.parentNode) splashEl.parentNode.removeChild(splashEl);
+          }, 400);
+        }
+        splashEl.addEventListener("click", hideSplashEarly);
+        splashEl.addEventListener("touchend", hideSplashEarly, { passive: true });
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", hideSplashEarly);
+        } else {
+          hideSplashEarly();
+        }
+        window.addEventListener("load", hideSplashEarly);
+        setTimeout(hideSplashEarly, 2500);
+      })();
+    </script>
 
     <main>
       <div class="wrap">
@@ -653,7 +711,16 @@
 
 
         <div class="place-map-wrap">
-          <div id="place-map" role="group" aria-label="Item placement — tap an item chip, then tap a wall to move it there"></div>
+          <div id="place-map" role="img" aria-label="Kitchen layout — the walls are lettered A, B and C, and each item sits on its wall"></div>
+          <div class="chips seg place-slider" id="place-slider" role="group" aria-label="Item to place — pick an item, then pick its wall"></div>
+          <div class="measure-panel" id="place-panel" hidden>
+            <div class="mp-main">
+              <span class="mp-label" id="place-panel-label">Item — on wall</span>
+              <div class="seg" role="group" aria-labelledby="place-panel-label" id="place-wall-seg"></div>
+            </div>
+            <p class="seg-note" id="place-panel-note" hidden></p>
+          </div>
+          <p class="place-hint" id="place-hint" aria-live="polite"></p>
         </div>
 
         <div class="measure" id="measure-base">
@@ -873,8 +940,8 @@
         <div class="field">
           <span class="field-label" id="lbl-panels-master">Finish panels required</span>
           <div class="seg" role="group" aria-labelledby="lbl-panels-master" id="seg-panels-master">
-            <button type="button" data-value="No" aria-pressed="true">No</button>
-            <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
+            <button type="button" data-value="No" aria-pressed="false">No</button>
+            <button type="button" data-value="Yes" aria-pressed="true">Yes</button>
           </div>
         </div>
 
@@ -884,12 +951,8 @@
         <div class="panel-row">
           <div class="panel-head">
             <span class="field-label" id="lbl-ref">REF2496 — Refrigerator End Panel — 24&Prime; W x 96&Prime; H</span>
-            <div class="seg" role="group" aria-labelledby="lbl-ref" id="seg-ref">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-ref" hidden>
+          <div class="panel-qty" id="qty-ref">
             <span class="field-label" id="lbl-refq">Quantity — REF2496</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-ref" data-int="1" aria-label="Decrease REF quantity">−</button>
@@ -902,12 +965,8 @@
         <div class="panel-row">
           <div class="panel-head">
             <span class="field-label" id="lbl-bep">BEP24 — Base End Panel — 24&Prime;</span>
-            <div class="seg" role="group" aria-labelledby="lbl-bep" id="seg-bep">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-bep" hidden>
+          <div class="panel-qty" id="qty-bep">
             <span class="field-label" id="lbl-bepq">Quantity — BEP24</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-bep" data-int="1" aria-label="Decrease BEP quantity">−</button>
@@ -920,12 +979,8 @@
         <div class="panel-row">
           <div class="panel-head">
             <span class="field-label" id="lbl-wep">WEP — Wall End Panel — 12&Prime; x wall height</span>
-            <div class="seg" role="group" aria-labelledby="lbl-wep" id="seg-wep">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-wep" hidden>
+          <div class="panel-qty" id="qty-wep">
             <span class="field-label" id="lbl-wepq">Quantity — WEP (at wall height)</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-wep" data-int="1" aria-label="Decrease WEP quantity">−</button>
@@ -941,12 +996,8 @@
         <div class="panel-row" id="row-ibep24">
           <div class="panel-head">
             <span class="field-label" id="lbl-ibep24">BEP24 — Island Side Panel — 24&Prime;</span>
-            <div class="seg" role="group" aria-labelledby="lbl-ibep24" id="seg-ibep24">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-ibep24" hidden>
+          <div class="panel-qty" id="qty-ibep24">
             <span class="field-label" id="lbl-ibep24q">Quantity — BEP24 island side panel</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-ibep24" data-int="1" aria-label="Decrease ibep24 quantity">−</button>
@@ -958,12 +1009,8 @@
         <div class="panel-row" id="row-bep26">
           <div class="panel-head">
             <span class="field-label" id="lbl-bep26">BEP26 — Island Side Panel — 26&Prime;</span>
-            <div class="seg" role="group" aria-labelledby="lbl-bep26" id="seg-bep26">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-bep26" hidden>
+          <div class="panel-qty" id="qty-bep26">
             <span class="field-label" id="lbl-bep26q">Quantity — BEP26 island side panel</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-bep26" data-int="1" aria-label="Decrease bep26 quantity">−</button>
@@ -975,12 +1022,8 @@
         <div class="panel-row" id="row-bep36">
           <div class="panel-head">
             <span class="field-label" id="lbl-bep36">BEP36 — Island Side Panel — 36&Prime;</span>
-            <div class="seg" role="group" aria-labelledby="lbl-bep36" id="seg-bep36">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-bep36" hidden>
+          <div class="panel-qty" id="qty-bep36">
             <span class="field-label" id="lbl-bep36q">Quantity — BEP36 island side panel</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-bep36" data-int="1" aria-label="Decrease bep36 quantity">−</button>
@@ -992,12 +1035,8 @@
         <div class="panel-row" id="row-bep48">
           <div class="panel-head">
             <span class="field-label" id="lbl-bep48">BEP48 — Island Side Panel — 48&Prime;</span>
-            <div class="seg" role="group" aria-labelledby="lbl-bep48" id="seg-bep48">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-bep48" hidden>
+          <div class="panel-qty" id="qty-bep48">
             <span class="field-label" id="lbl-bep48q">Quantity — BEP48 island side panel</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-bep48" data-int="1" aria-label="Decrease bep48 quantity">−</button>
@@ -1009,12 +1048,8 @@
         <div class="panel-row" id="row-iref24">
           <div class="panel-head">
             <span class="field-label" id="lbl-iref24">REF2496 — Island Back Panel — 24&Prime; W x 96&Prime; H</span>
-            <div class="seg" role="group" aria-labelledby="lbl-iref24" id="seg-iref24">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-iref24" hidden>
+          <div class="panel-qty" id="qty-iref24">
             <span class="field-label" id="lbl-iref24q">Quantity — REF2496 island back panel</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-iref24" data-int="1" aria-label="Decrease iref24 quantity">−</button>
@@ -1026,12 +1061,8 @@
         <div class="panel-row" id="row-ref36">
           <div class="panel-head">
             <span class="field-label" id="lbl-ref36">REF3696 — Refrigerator End Panel — 36&Prime; W x 96&Prime; H (island back)</span>
-            <div class="seg" role="group" aria-labelledby="lbl-ref36" id="seg-ref36">
-              <button type="button" data-value="No" aria-pressed="true">No</button>
-              <button type="button" data-value="Yes" aria-pressed="false">Yes</button>
-            </div>
           </div>
-          <div class="panel-qty" id="qty-ref36" hidden>
+          <div class="panel-qty" id="qty-ref36">
             <span class="field-label" id="lbl-ref36q">Quantity — REF3696 island back panel</span>
             <div class="stepper small">
               <button type="button" data-step="-1" data-target="in-ref36" data-int="1" aria-label="Decrease ref36 quantity">−</button>
@@ -1141,14 +1172,11 @@
         dish: "Yes",
         window: "No",
         asm: "RTA",
-        crownType: "None", profile: "Silver", ibep24: "No", bep26: "No", bep36: "No", bep48: "No", iref24: "No", ref36: "No", picks: picksDefault("L-Shape"),
+        crownType: "None", profile: "Silver", picks: picksDefault("L-Shape"),
         corner: "No",
         baseCorner: "BBC",
         upperCorner: "WDC",
-        panelsMaster: "No",
-        ref: "No",
-        bep: "No",
-        wep: "No",
+        panelsMaster: "Yes",
         hst: false,
         province: "Ontario",
         ktype: "L-Shape",
@@ -1160,19 +1188,19 @@
       /* ---- Wall picks, painted uppers, crown availability ---- */
       var PAINTED_UPPERS = ["WSS", "SSW", "BSS", "GSS"];
       var DEFAULT_PICKS = {
-        "Straight": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A" },
-        "Island": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A" },
-        "L-Shape": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" },
-        "L+Island": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" },
-        "Galley": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "A" },
-        "U-Shape": { window: "B", fridge: "A", sink: "B", stove: "C", pantry: "C" }
+        "Straight": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A", dish: "A" },
+        "Island": { window: "A", fridge: "A", sink: "A", stove: "A", pantry: "A", dish: "A" },
+        "L-Shape": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B", dish: "A" },
+        "L+Island": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B", dish: "A" },
+        "Galley": { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "A", dish: "A" },
+        "U-Shape": { window: "B", fridge: "A", sink: "B", stove: "C", pantry: "C", dish: "B" }
       };
       function picksDefault(kt) {
         /* Called from the state literal, which evaluates before the
            DEFAULT_PICKS assignment — fall back to the L-Shape defaults. */
         var d = (typeof DEFAULT_PICKS !== "undefined" && DEFAULT_PICKS) ? (DEFAULT_PICKS[kt] || DEFAULT_PICKS["L-Shape"]) : null;
-        if (!d) d = { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" };
-        return { window: d.window, fridge: d.fridge, sink: d.sink, stove: d.stove, pantry: d.pantry };
+        if (!d) d = { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B", dish: "A" };
+        return { window: d.window, fridge: d.fridge, sink: d.sink, stove: d.stove, pantry: d.pantry, dish: d.dish || d.sink };
       }
       function arrangementIsDefault() {
         var d = DEFAULT_PICKS[state.ktype];
@@ -1207,15 +1235,34 @@
         segSet("seg-crown", state.crownType);
         requestAnimationFrame(function () { segLayout(seg, false); });
       }
-      function refreshPickers() { renderPlaceMap(); }
+      function refreshPickers() { renderPlace(); }
 
-      /* ---- Placement map ----
-         One compact diagram does both jobs of the old wall key and the
-         five picker rows: it shows the selected type's walls with their
-         letters, and each item sits on its assigned wall as a chip.
-         Tap a chip to select it, then tap a wall (or the island) to
-         move the item there; the design recomposes via state.picks. */
+      /* ---- Placement: mini plan + item slider + per-item wall panel ----
+         The mini layout is a small floor plan in the main plan's visual
+         language: thin wall lines, a pale cabinet-depth strip along each
+         wall joined in one outline so every corner is a flush square,
+         lettered wall badges, and one frosted marker per item seated
+         inside its wall's strip. The slider below picks the item (the
+         Measure bar's sliding-pill track); the item's panel then offers
+         "On wall" as a segmented choice of exactly the walls that item
+         can take. Choosing a wall updates state.picks, the marker, the
+         plan and the estimate in the same step. */
       var placeSel = null;
+      var PLACE_ITEMS = [
+        { id: "window", label: "Window", icon: '<rect x="4" y="3" width="16" height="18"/><path d="M12 3v18M4 12h16"/>' },
+        { id: "fridge", label: "Fridge", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M6 10h12M9 6v2M9 13v3"/>' },
+        { id: "sink", label: "Sink", icon: '<path d="M4 11h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M9 11V7a3 3 0 0 1 6 0"/>' },
+        { id: "dish", label: "Dishwasher", icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 8h16M7.5 5.8h.01M11 5.8h.01"/><path d="M7 13.5c2 1.6 4-1.6 6 0 1 .8 2.4.8 4-.2"/>' },
+        { id: "stove", label: "Stove", icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/><path d="M6.5 15.5h11"/>' },
+        { id: "pantry", label: "Pantry", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M12 3v18"/>' }
+      ];
+      var PLACE_LABEL = { window: "Window", fridge: "Fridge", sink: "Sink", dish: "Dishwasher", stove: "Stove", pantry: "Pantry" };
+      var CHIP_W = { window: 62, fridge: 60, sink: 50, dish: 78, stove: 56, pantry: 62 };
+      function placeItemVisible(it) {
+        if (it === "window") return state.window === "Yes";
+        if (it === "dish") return state.dish === "Yes";
+        return true;
+      }
       function pickWallValid(item, wall) {
         var kt = state.ktype;
         if (kt === "Straight") return wall === "A";
@@ -1229,66 +1276,295 @@
         }
         return wall === "A" || wall === "B";
       }
+      /* The dishwasher stays beside the sink: it sits on the sink's wall,
+         or — in the standard L arrangement — wraps around the corner onto
+         leg B when wall B is picked for it (the calc engine's dwWrapToB).
+         Everywhere else it follows the sink. */
+      function dishWallEffective() {
+        if (state.dish !== "Yes") return null;
+        var sink = state.picks.sink;
+        if ((state.ktype === "L-Shape" || state.ktype === "L+Island") && sink === "A" && state.picks.dish === "B" && arrangementIsDefault()) return "B";
+        return sink;
+      }
+      function dishWallOffers() {
+        var out = [state.picks.sink];
+        if ((state.ktype === "L-Shape" || state.ktype === "L+Island") && state.picks.sink === "A" && arrangementIsDefault()) out.push("B");
+        return out;
+      }
+      function placeWallOffers(item) {
+        if (item === "dish") return dishWallOffers();
+        var g = placeGeom(state.ktype);
+        return ["A", "B", "C", "Island"].filter(function (w) {
+          if (!pickWallValid(item, w)) return false;
+          return w === "Island" ? !!g.island : !!g.walls[w];
+        });
+      }
+      function placePickEffective(item) {
+        if (item === "dish") return dishWallEffective();
+        var offers = placeWallOffers(item);
+        var cur = state.picks[item];
+        return offers.indexOf(cur) >= 0 ? cur : offers[0];
+      }
       function placeGeom(kt) {
         function W(x1, y1, x2, y2, inx, iny, pf) { return { x1: x1, y1: y1, x2: x2, y2: y2, inx: inx, iny: iny, pf: pf }; }
-        var walls = {}, isl = null;
-        if (kt === "U-Shape") { walls.B = W(64, 34, 256, 34, 0, 1, 0.5); walls.A = W(64, 34, 64, 156, 1, 0, 1); walls.C = W(256, 34, 256, 156, -1, 0, 1); }
-        else if (kt === "L-Shape" || kt === "L+Island") { walls.A = W(40, 34, 280, 34, 0, 1, 0); walls.B = W(280, 34, 280, 156, -1, 0, 1); if (kt === "L+Island") isl = { x: 92, y: 108, w: 96, h: 30 }; }
-        else if (kt === "Galley") { walls.A = W(64, 34, 256, 34, 0, 1, 0); walls.B = W(64, 156, 256, 156, 0, -1, 1); }
-        else { walls.A = W(64, 42, 256, 42, 0, 1, 0); if (kt === "Island") isl = { x: 104, y: 104, w: 112, h: 32 }; }
-        return { walls: walls, island: isl };
+        var walls = {}, isl = null, wallPath = "", outline = "";
+        if (kt === "U-Shape") {
+          walls.B = W(66, 36, 254, 36, 0, 1, 0.5); walls.A = W(66, 36, 66, 158, 1, 0, 1); walls.C = W(254, 36, 254, 158, -1, 0, 1);
+          wallPath = "M66 158V36H254V158";
+          outline = "M66 36H254V158H228V62H92V158H66Z";
+        } else if (kt === "L-Shape" || kt === "L+Island") {
+          walls.A = W(36, 36, 284, 36, 0, 1, 0); walls.B = W(284, 36, 284, 158, -1, 0, 1);
+          wallPath = "M36 36H284V158";
+          outline = "M36 36H284V158H258V62H36Z";
+          if (kt === "L+Island") isl = { x: 98, y: 104, w: 104, h: 34 };
+        } else if (kt === "Galley") {
+          walls.A = W(66, 36, 254, 36, 0, 1, 0); walls.B = W(66, 154, 254, 154, 0, -1, 1);
+          wallPath = "M66 36H254M66 154H254";
+          outline = "M66 36H254V62H66ZM66 128H254V154H66Z";
+        } else {
+          walls.A = W(66, 44, 254, 44, 0, 1, 0);
+          wallPath = "M66 44H254";
+          outline = "M66 44H254V70H66Z";
+          if (kt === "Island") isl = { x: 100, y: 102, w: 120, h: 36 };
+        }
+        return { walls: walls, island: isl, wallPath: wallPath, outline: outline };
+      }
+      var PM_DEPTH = 26;
+      function wallLen(w) { return Math.sqrt((w.x2 - w.x1) * (w.x2 - w.x1) + (w.y2 - w.y1) * (w.y2 - w.y1)); }
+      /* Named pmWallPoint, NOT wallPoint: the main 2D plan further down
+         declares its own wallPoint(leg, s). Two same-named top-level
+         function declarations collide — the later one wins for BOTH
+         call sets, so every mini-plan point came back NaN (console
+         errors, chips stacked off-plan and clipped, corners broken). */
+      function pmWallPoint(w, s, off) {
+        var len = wallLen(w), ux = (w.x2 - w.x1) / len, uy = (w.y2 - w.y1) / len;
+        return { x: w.x1 + ux * s + w.inx * off, y: w.y1 + uy * s + w.iny * off };
+      }
+      function stripRect(w) {
+        if (w.y1 === w.y2) return { x: Math.min(w.x1, w.x2), y: w.iny > 0 ? w.y1 : w.y1 - PM_DEPTH, w: Math.abs(w.x2 - w.x1), h: PM_DEPTH };
+        return { x: w.inx > 0 ? w.x1 : w.x1 - PM_DEPTH, y: Math.min(w.y1, w.y2), w: PM_DEPTH, h: Math.abs(w.y2 - w.y1) };
+      }
+      /* Chip widths for one wall (or the island), shrunk proportionally
+         when the items on it are wider than the wall itself — the drawn
+         B leg of the L is only 122 units, so Fridge + Stove + Pantry
+         (184 units at full width) can never fit it unscaled. */
+      function fitWidths(list, avail) {
+        var ws = {}, tot = 0;
+        list.forEach(function (it) { ws[it] = CHIP_W[it]; tot += CHIP_W[it]; });
+        tot += Math.max(0, list.length - 1) * 3;
+        if (tot > avail && tot > 0) {
+          var f = avail / tot;
+          list.forEach(function (it) { ws[it] = Math.max(30, Math.round(CHIP_W[it] * f * 10) / 10); });
+        }
+        return ws;
+      }
+      /* Lay a wall's markers along its strip: flow items at spread
+         fractions, the pantry at the wall's end; centres are clamped and
+         pushed apart so markers never overlap or spill past an end. */
+      function layoutWall(w, list) {
+        var len = wallLen(w);
+        var ws = fitWidths(list, len - 2);
+        var flow = list.filter(function (it) { return it !== "pantry"; });
+        var fr = flow.length <= 1 ? [0.5] : flow.length === 2 ? [0.32, 0.68] : flow.length === 3 ? [0.22, 0.5, 0.78] : flow.length === 4 ? [0.14, 0.38, 0.62, 0.86] : [0.1, 0.3, 0.5, 0.7, 0.9];
+        var items = flow.map(function (it, i) { return { it: it, s: fr[Math.min(i, fr.length - 1)] * len, hw: ws[it] / 2, w: ws[it] }; });
+        if (list.indexOf("pantry") >= 0) items.push({ it: "pantry", s: w.pf * len, hw: ws.pantry / 2, w: ws.pantry });
+        items.sort(function (a, b) { return a.s - b.s; });
+        for (var i = 0; i < items.length; i++) {
+          var lo = items[i].hw + 1, hi = len - items[i].hw - 1;
+          if (i > 0) lo = Math.max(lo, items[i - 1].s + items[i - 1].hw + items[i].hw + 3);
+          items[i].s = Math.max(items[i].s, lo);
+          if (items[i].s > hi) items[i].s = hi;
+        }
+        for (var j = items.length - 2; j >= 0; j--) {
+          var maxS = items[j + 1].s - items[j + 1].hw - items[j].hw - 3;
+          if (items[j].s > maxS) items[j].s = maxS;
+        }
+        /* Final safety clamp: whatever the passes above produced, a
+           centre never leaves the wall — the backward pass alone could
+           push the first item to a negative s on an overcrowded wall,
+           which rendered its chip half outside the top of the map. */
+        for (var k2 = 0; k2 < items.length; k2++) {
+          var lo2 = items[k2].hw + 1, hi2 = len - items[k2].hw - 1;
+          if (items[k2].s < lo2) items[k2].s = lo2;
+          if (items[k2].s > hi2) items[k2].s = hi2;
+        }
+        return items.map(function (o) { var p = pmWallPoint(w, o.s, PM_DEPTH / 2); return { it: o.it, x: p.x, y: p.y, w: o.w }; });
+      }
+      function pmChip(it, cx, cy, wOpt) {
+        var w = wOpt || CHIP_W[it], meta = null;
+        PLACE_ITEMS.forEach(function (m) { if (m.id === it) meta = m; });
+        /* Shrunk chips (crowded wall): when the pill is too narrow for
+           icon + label at full size, drop the icon and centre the label
+           in a smaller size, so the text stays inside the pill instead
+           of spilling past its edge (the Dishwasher label at half width
+           overflowed the pill and ran off the map's edge). */
+        var ico = "", tx, tAttr = "";
+        if (w >= 27 + PLACE_LABEL[it].length * 5) {
+          ico = '<g class="pm-ico" transform="translate(' + (-w / 2 + 5) + ', -6) scale(0.5)">' + (meta ? meta.icon : "") + "</g>";
+          tx = -w / 2 + 21;
+        } else {
+          tx = 0; tAttr = ' text-anchor="middle" style="font-size:8px"';
+        }
+        return '<g class="pm-chip' + (placeSel === it ? " sel" : "") + '" data-item="' + it + '" transform="translate(' + Math.round(cx * 10) / 10 + "," + Math.round(cy * 10) / 10 + ')"><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="10"/>' + ico + '<text x="' + tx + '" y="3.2"' + tAttr + ">" + PLACE_LABEL[it] + "</text></g>";
       }
       function renderPlaceMap() {
         var host = $("place-map");
         if (!host) return;
-        if (placeSel === "window" && state.window !== "Yes") placeSel = null;
+        if (placeSel && !placeItemVisible(placeSel)) placeSel = null;
         var kt = state.ktype, g = placeGeom(kt);
-        var labels = { window: "Window", fridge: "Fridge", sink: "Sink", stove: "Stove", pantry: "Pantry" };
         var onWall = {};
-        ["window", "fridge", "sink", "stove", "pantry"].forEach(function (it) {
-          if (it === "window" && state.window !== "Yes") return;
-          var w = state.picks[it];
+        ["window", "fridge", "sink", "dish", "stove", "pantry"].forEach(function (it) {
+          if (!placeItemVisible(it)) return;
+          var w = it === "dish" ? dishWallEffective() : state.picks[it];
           if (w !== "Island" && !g.walls[w]) w = "A";
           (onWall[w] = onWall[w] || []).push(it);
         });
         var out = ['<svg viewBox="0 0 320 190" role="img" aria-label="Kitchen layout — walls and item placement">'];
         Object.keys(g.walls).forEach(function (k) {
-          var w = g.walls[k], horiz = w.y1 === w.y2;
-          var sx = Math.min(w.x1, w.x2) - (horiz ? 0 : 6), sy = Math.min(w.y1, w.y2) - (horiz ? 6 : 0);
-          var sw = horiz ? Math.abs(w.x2 - w.x1) : 12, sh = horiz ? 12 : Math.abs(w.y2 - w.y1);
-          var hx = horiz ? sx : sx - 10, hy = horiz ? sy - 10 : sy, hw = horiz ? sw : 32, hh = horiz ? 32 : sh;
-          out.push('<g class="pm-wall" data-wall="' + k + '"><rect x="' + hx + '" y="' + hy + '" width="' + hw + '" height="' + hh + '" fill="rgba(0,0,0,0)"/><rect class="pm-strip" x="' + sx + '" y="' + sy + '" width="' + sw + '" height="' + sh + '" rx="3"/></g>');
-          var mx = (w.x1 + w.x2) / 2 - w.inx * 20, my = (w.y1 + w.y2) / 2 - w.iny * 20;
-          out.push('<g><circle class="pm-badge" cx="' + mx + '" cy="' + my + '" r="9"/><text class="pm-badge-t" x="' + mx + '" y="' + (my + 3.5) + '">' + k + "</text></g>");
+          var w = g.walls[k], r = stripRect(w);
+          out.push('<rect class="pm-stripfill" x="' + r.x + '" y="' + r.y + '" width="' + r.w + '" height="' + r.h + '"/>');
+          var len = wallLen(w);
+          for (var s = 30; s < len - 8; s += 30) {
+            var p1 = pmWallPoint(w, s, 1.5), p2 = pmWallPoint(w, s, PM_DEPTH - 1.5);
+            out.push('<line class="pm-tick" x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '"/>');
+          }
         });
+        out.push('<path class="pm-outline" d="' + g.outline + '"/>');
         if (g.island) {
           var r0 = g.island;
-          out.push("<g" + (kt === "Island" ? ' class="pm-wall" data-wall="Island"' : "") + '><rect class="pm-isl" x="' + r0.x + '" y="' + r0.y + '" width="' + r0.w + '" height="' + r0.h + '" rx="4"/><text class="pm-isl-t" x="' + (r0.x + r0.w / 2) + '" y="' + (r0.y + r0.h + 11) + '">ISLAND</text></g>');
+          out.push('<rect class="pm-isl" x="' + r0.x + '" y="' + r0.y + '" width="' + r0.w + '" height="' + r0.h + '" rx="5"/><rect class="pm-isl-in" x="' + (r0.x + 4) + '" y="' + (r0.y + 4) + '" width="' + (r0.w - 8) + '" height="' + (r0.h - 8) + '" rx="3"/><text class="pm-isl-t" x="' + (r0.x + r0.w / 2) + '" y="' + (r0.y + 10.5) + '">ISLAND</text>');
         }
-        function chip(it, cx, cy) {
-          return '<g class="pm-chip' + (placeSel === it ? " sel" : "") + '" data-item="' + it + '" transform="translate(' + cx + "," + cy + ')"><rect x="-28" y="-11" width="56" height="22" rx="11"/><text x="0" y="3.5">' + labels[it] + "</text></g>";
-        }
+        out.push('<path class="pm-wallline" d="' + g.wallPath + '"/>');
+        Object.keys(g.walls).forEach(function (k) {
+          var w = g.walls[k], bp = pmWallPoint(w, wallLen(w) / 2, -17);
+          out.push('<g><circle class="pm-badge" cx="' + bp.x + '" cy="' + bp.y + '" r="9.5"/><text class="pm-badge-t" x="' + bp.x + '" y="' + (bp.y + 3.5) + '">' + k + "</text></g>");
+        });
         Object.keys(onWall).forEach(function (k) {
           var list = onWall[k];
           if (k === "Island" && g.island) {
-            var cxI = g.island.x + g.island.w / 2, cyI = g.island.y + g.island.h / 2;
-            list.forEach(function (it, i) { out.push(chip(it, cxI + (list.length > 1 ? (i - (list.length - 1) / 2) * 60 : 0), cyI)); });
+            var wsI = fitWidths(list, g.island.w - 6);
+            var tot = 0; list.forEach(function (it) { tot += wsI[it]; }); tot += (list.length - 1) * 6;
+            var cxI = g.island.x + g.island.w / 2 - tot / 2, cyI = g.island.y + g.island.h / 2 + 4;
+            list.forEach(function (it) { out.push(pmChip(it, cxI + wsI[it] / 2, cyI, wsI[it])); cxI += wsI[it] + 6; });
             return;
           }
           var w = g.walls[k];
           if (!w) return;
-          var flow = list.filter(function (it) { return it !== "pantry"; });
-          var fr = flow.length <= 1 ? [0.5] : flow.length === 2 ? [0.32, 0.68] : flow.length === 3 ? [0.22, 0.5, 0.78] : [0.14, 0.38, 0.62, 0.86];
-          flow.forEach(function (it, i) {
-            var f = fr[Math.min(i, fr.length - 1)];
-            out.push(chip(it, w.x1 + (w.x2 - w.x1) * f + w.inx * 27, w.y1 + (w.y2 - w.y1) * f + w.iny * 27));
-          });
-          if (list.indexOf("pantry") >= 0) {
-            out.push(chip("pantry", w.x1 + (w.x2 - w.x1) * w.pf + w.inx * 27, w.y1 + (w.y2 - w.y1) * w.pf + w.iny * 27));
-          }
+          layoutWall(w, list).forEach(function (o) { out.push(pmChip(o.it, o.x, o.y, o.w)); });
         });
         out.push("</svg>");
         host.innerHTML = out.join("");
+      }
+      /* Slider layout: same sliding pill as segLayout, but the track
+         wraps to two rows, so the pill also follows the button's row. */
+      function placeSegLayout(animate) {
+        var seg = $("place-slider");
+        if (!seg) return;
+        var pill = seg.querySelector(".seg-pill"), glow = seg.querySelector(".seg-glow");
+        var btn = seg.querySelector('button[aria-pressed="true"]');
+        if (!pill) return;
+        if (!btn || !btn.offsetWidth) { pill.style.opacity = "0"; if (glow) glow.style.opacity = "0"; return; }
+        if (!animate) seg.classList.add("no-anim");
+        pill.style.width = btn.offsetWidth + "px"; pill.style.height = btn.offsetHeight + "px";
+        pill.style.top = btn.offsetTop + "px"; pill.style.bottom = "auto";
+        pill.style.transform = "translateX(" + btn.offsetLeft + "px)"; pill.style.opacity = "1";
+        if (glow) {
+          glow.style.width = btn.offsetWidth + "px"; glow.style.height = btn.offsetHeight + "px";
+          glow.style.top = btn.offsetTop + "px"; glow.style.bottom = "auto";
+          glow.style.transform = "translateX(" + btn.offsetLeft + "px) translateY(6px) scale(.92)"; glow.style.opacity = ".34";
+        }
+        if (!animate) { void seg.offsetWidth; seg.classList.remove("no-anim"); }
+      }
+      function syncPlaceSlider(animate) {
+        var seg = $("place-slider");
+        if (!seg) return;
+        if (placeSel && !placeItemVisible(placeSel)) placeSel = null;
+        var btns = seg.querySelectorAll("button[data-item]");
+        for (var i = 0; i < btns.length; i++) {
+          var it = btns[i].getAttribute("data-item");
+          btns[i].style.display = placeItemVisible(it) ? "" : "none";
+          btns[i].setAttribute("aria-pressed", placeSel === it ? "true" : "false");
+        }
+        placeSegLayout(animate);
+      }
+      function renderPlacePanel() {
+        var panel = $("place-panel");
+        if (!panel) return;
+        if (!placeSel || !placeItemVisible(placeSel)) { panel.hidden = true; return; }
+        var item = placeSel;
+        panel.hidden = false;
+        $("place-panel-label").textContent = PLACE_LABEL[item] + (item === "pantry" ? " — at the end of wall" : " — on wall");
+        var seg = $("place-wall-seg");
+        var keep = [];
+        for (var i = 0; i < seg.childNodes.length; i++) { var nd = seg.childNodes[i]; if (nd.nodeType === 1 && nd.tagName !== "BUTTON") keep.push(nd); }
+        seg.innerHTML = "";
+        keep.forEach(function (nd) { seg.appendChild(nd); });
+        var cur = placePickEffective(item);
+        placeWallOffers(item).forEach(function (w) {
+          var b = document.createElement("button");
+          b.type = "button"; b.setAttribute("data-value", w);
+          b.setAttribute("aria-pressed", w === cur ? "true" : "false");
+          b.textContent = w;
+          seg.appendChild(b);
+        });
+        var note = $("place-panel-note");
+        var nt = "";
+        if (item === "dish") nt = dishWallOffers().length > 1 ? "The dishwasher stays beside the sink — pick the sink's wall, or wall B to wrap it around the corner beside the sink." : "The dishwasher stays beside the sink, on the sink's wall.";
+        else if (item === "pantry") nt = "Tall units sit at the end of the chosen wall.";
+        else if (item === "window") nt = "The window sits on this wall; the sink stays centred under it when they share a wall.";
+        note.textContent = nt;
+        note.hidden = !nt;
+        requestAnimationFrame(function () { segLayout(seg, false); });
+      }
+      function updatePlaceHint() {
+        var h = $("place-hint");
+        if (!h) return;
+        h.textContent = placeSel ? "Pick a wall for the " + PLACE_LABEL[placeSel] : "Tap an item above, then pick which wall it sits on";
+      }
+      function renderPlace() {
+        renderPlaceMap();
+        syncPlaceSlider(false);
+        renderPlacePanel();
+        updatePlaceHint();
+      }
+      function selectPlace(item) {
+        placeSel = item;
+        renderPlaceMap();
+        syncPlaceSlider(true);
+        renderPlacePanel();
+        updatePlaceHint();
+      }
+      function initPlace() {
+        var seg = $("place-slider");
+        if (seg) {
+          PLACE_ITEMS.forEach(function (it) {
+            var b = document.createElement("button");
+            b.type = "button"; b.className = "chip"; b.setAttribute("data-item", it.id); b.setAttribute("aria-pressed", "false");
+            b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + it.icon + '</svg><span>' + it.label + "</span>";
+            b.addEventListener("click", function () { selectPlace(it.id); });
+            seg.appendChild(b);
+          });
+        }
+        var wseg = $("place-wall-seg");
+        if (wseg) {
+          wseg.addEventListener("click", function (e) {
+            var b = e.target.closest("button");
+            if (!b || !placeSel) return;
+            var w = b.getAttribute("data-value");
+            if (state.picks[placeSel] !== w) {
+              state.picks[placeSel] = w;
+              renderPlace();
+              calc();
+            }
+          });
+        }
+        syncPlaceSlider(false);
+        updatePlaceHint();
+        var placeRaf = 0;
+        window.addEventListener("resize", function () {
+          if (placeRaf) return;
+          placeRaf = requestAnimationFrame(function () { placeRaf = 0; syncPlaceSlider(false); });
+        });
       }
 
       /* Combined sales-tax rate per province / territory (matches the workbook). */
@@ -1510,7 +1786,7 @@
         $("window-width-row").hidden = state.window !== "Yes";
         /* The Window chip joins the placement map only when there is a
            window; refreshPickers re-renders it. */
-        renderPlaceMap();
+        renderPlace();
       }
 
       function refreshHst() {
@@ -1553,7 +1829,7 @@
          panel quantities): a manual panel edit wins until this changes. */
       function designSig() {
         function v(id) { var el = $(id); return el ? el.value : ""; }
-        return [state.ktype, state.picks.window, state.picks.fridge, state.picks.sink, state.picks.stove, state.picks.pantry, state.baseCorner, state.upperCorner, state.fridge, state.fridgeNear, state.window, state.cooking, state.dish, state.wallH, state.tallH, v("in-legA"), v("in-legB"), v("in-legC"), v("in-base"), v("in-island"), v("in-tall"), v("in-windoww")].join("|");
+        return [state.ktype, state.picks.window, state.picks.fridge, state.picks.sink, state.picks.stove, state.picks.pantry, state.picks.dish, state.baseCorner, state.upperCorner, state.fridge, state.fridgeNear, state.window, state.cooking, state.dish, state.wallH, state.tallH, v("in-legA"), v("in-legB"), v("in-legC"), v("in-base"), v("in-island"), v("in-tall"), v("in-windoww")].join("|");
       }
       var panelManual = {};
       var lastSugg = null;
@@ -1566,17 +1842,12 @@
           else { detail.classList.remove("open"); detail.setAttribute("aria-hidden", "true"); }
           requestAnimationFrame(function () { segLayoutIn(detail, true); });
         }
-        $("qty-ref").hidden = !(masterOn && state.ref === "Yes");
-        $("qty-bep").hidden = !(masterOn && state.bep === "Yes");
-        $("qty-wep").hidden = !(masterOn && state.wep === "Yes");
         var islT = state.ktype === "Island" || state.ktype === "L+Island";
         var islHead = $("row-islhead");
         if (islHead) islHead.style.display = islT ? "" : "none";
         ["ibep24", "bep26", "bep36", "bep48", "iref24", "ref36"].forEach(function (k) {
           var row = $("row-" + k);
           if (row) row.style.display = islT ? "" : "none";
-          var q = $("qty-" + k);
-          if (q) q.hidden = !(masterOn && islT && state[k] === "Yes");
         });
       }
 
@@ -2381,7 +2652,10 @@
             tallList.forEach(function (sk) { var w = skuW(sk); paintSeg(legUC, { kind: /^(PC|HPC)/.test(sk) ? "tall" : "cab", sku: sk, s: lenUC + tallC, w: w }, 24, false); tallC += w; });
           }
           var botY = 3 + Math.max(lenUA + tallA, lenUC + tallC);
-          wallH(-6, lenUB + 6, 0);
+          /* Squared corners: the back wall's painted span ends exactly
+             at the side walls' outer faces (side walls at x=0 and
+             x=lenUB+3, half-thickness 3) — no protruding nub. */
+          wallH(0, lenUB + 3, 0);
           wallV(0, 0, botY + 6);
           wallV(lenUB + 3, 0, botY + 6);
           if (bcU && bcU.indexOf("BBC") === 0) { paintClearance(legUA, 24, 2, 24, true); paintClearance(legUC, 24, 2, 24, true); }
@@ -2583,7 +2857,13 @@
       ];
       function updateChips() {
         if (state.window !== "Yes" && measureSel === "window") { measureSel = null; $("measure-panel").hidden = true; }
-        var chips = document.querySelectorAll(".chip");
+        /* Scoped to the Measure bar ONLY. A global ".chip" selector also
+           matches the placement slider's chips (class "chip", data-item,
+           no .chip-val child): querySelector(".chip-val") came back null
+           and val.textContent threw — inside calc() during init, before
+           the splash handler at the end of the script was registered,
+           which left the app stuck on the splash screen. */
+        var chips = document.querySelectorAll("#measure-chips .chip");
         for (var i = 0; i < chips.length; i++) {
           var id = chips[i].getAttribute("data-chip");
           chips[i].classList.toggle("active", measureSel === id);
@@ -3041,6 +3321,15 @@
             if (!planL2.ok) { planL2 = evalL2(planL2.flip); planL2.dwWrap = state.dish === "Yes" && legBft > 0; planL2.ok = true; }
             if (legAft <= 0) { planL2.flip = false; planL2.dwWrap = false; }
             baseFlipL = planL2.flip; dwWrapToB = !!planL2.dwWrap;
+            /* An explicit Dishwasher = wall B pick is a wrap request:
+               evalL2 only wraps on spacing (when the DW cannot fit leg
+               A), so without this the pick moved the mini-map marker but
+               the priced design and the plan kept the DW on leg A. Force
+               the wrap when leg B can fit corner + stove + DW. */
+            if (!dwWrapToB && dishWallEffective() === "B") {
+              var footBw2 = baseFlipL ? cbOnA2 : cbOnB2;
+              if (lenBin2 - footBw2 - 30 - dwIn2 >= 0) dwWrapToB = true;
+            }
             upperFlipL = baseFlipL && state.upperCorner === "WBC";
             var footA2 = baseFlipL ? cbOnB2 : 0, footB2 = baseFlipL ? cbOnA2 : cbOnB2;
             if (legAft <= 0) footB2 = 0; /* no leg A entered — no corner footprint owed */
@@ -3242,7 +3531,7 @@
            (fridge door-swing gap), or a tall unit. */
         var fillBasePerLeg = {}, fillWallPerLeg = {}, fillBaseCount = 0, fillWallCount = 0;
         var panelSugg = { ref: 0, bep: 0, wep: 0, ibep24: 0, iref24: 0 };
-        var refSidesNow = (state.panelsMaster === "Yes" && state.ref === "Yes") ? Math.min(qty("in-ref"), 2) : 0;
+        var refSidesNow = (state.panelsMaster === "Yes") ? Math.min(qty("in-ref"), 2) : 0;
         (function () {
           var shim = { planLegs: planLegs, tallListRaw: tallList, islandListRaw: islandList, islandFt: islandFt, winW: winW, windowOn: state.window, wallH: wallH, fridgeW: parseInt(state.fridge, 10), ktype: ktype, line: line, dish: state.dish, cooking: state.cooking, tooTight: false, refSides: refSidesNow };
           var sc = null;
@@ -3322,7 +3611,7 @@
         var designSigNow = designSig();
         var MANAGED = ["ref", "bep", "wep", "ibep24", "iref24"];
         var PINPUT = { ref: "in-ref", bep: "in-bep", wep: "in-wep", ibep24: "in-ibep24", iref24: "in-iref24" };
-        function effQty(k) { return (state.panelsMaster === "Yes" && state[k] === "Yes") ? qty(PINPUT[k]) : 0; }
+        function effQty(k) { return (state.panelsMaster === "Yes") ? qty(PINPUT[k]) : 0; }
         if (lastSugg && lastSugg.sig === designSigNow) {
           MANAGED.forEach(function (k) { if (effQty(k) !== lastSugg[k]) panelManual[k] = designSigNow; });
           if (state.panelsMaster !== lastSugg.master) panelManual.master = designSigNow;
@@ -3334,12 +3623,10 @@
         MANAGED.forEach(function (k) {
           if (panelManual[k] === designSigNow) return;
           var q = panelSugg[k];
-          state[k] = q > 0 ? "Yes" : "No";
           var inp = $(PINPUT[k]); if (inp) inp.value = q > 0 ? String(q) : "";
-          segSet("seg-" + k, state[k]);
         });
         refreshPanels();
-        refSidesNow = (state.panelsMaster === "Yes" && state.ref === "Yes") ? Math.min(qty("in-ref"), 2) : 0;
+        refSidesNow = (state.panelsMaster === "Yes") ? Math.min(qty("in-ref"), 2) : 0;
         lastSugg = { sig: designSigNow, master: state.panelsMaster, ref: panelSugg.ref, bep: panelSugg.bep, wep: panelSugg.wep, ibep24: panelSugg.ibep24, iref24: panelSugg.iref24 };
         var warnEl = $("panel-warn");
         if (warnEl) {
@@ -3475,18 +3762,18 @@
         }
 
         var masterOn = state.panelsMaster === "Yes";
-        var refQty = (masterOn && state.ref === "Yes") ? qty("in-ref") : 0;
-        var bepQty = (masterOn && state.bep === "Yes") ? qty("in-bep") : 0;
-        var wepQty = (masterOn && state.wep === "Yes") ? qty("in-wep") : 0;
+        var refQty = masterOn ? qty("in-ref") : 0;
+        var bepQty = masterOn ? qty("in-bep") : 0;
+        var wepQty = masterOn ? qty("in-wep") : 0;
         var refAmt = refQty * accLow.ref;
         var bepAmt = bepQty * accLow.bep;
         var wepAmt = wepQty * accUp["wep" + wallH];
-        var ibep24Qty = (masterOn && islandOn && state.ibep24 === "Yes") ? qty("in-ibep24") : 0;
-        var bep26Qty = (masterOn && islandOn && state.bep26 === "Yes") ? qty("in-bep26") : 0;
-        var bep36Qty = (masterOn && islandOn && state.bep36 === "Yes") ? qty("in-bep36") : 0;
-        var bep48Qty = (masterOn && islandOn && state.bep48 === "Yes") ? qty("in-bep48") : 0;
-        var iref24Qty = (masterOn && islandOn && state.iref24 === "Yes") ? qty("in-iref24") : 0;
-        var ref36Qty = (masterOn && islandOn && state.ref36 === "Yes") ? qty("in-ref36") : 0;
+        var ibep24Qty = (masterOn && islandOn) ? qty("in-ibep24") : 0;
+        var bep26Qty = (masterOn && islandOn) ? qty("in-bep26") : 0;
+        var bep36Qty = (masterOn && islandOn) ? qty("in-bep36") : 0;
+        var bep48Qty = (masterOn && islandOn) ? qty("in-bep48") : 0;
+        var iref24Qty = (masterOn && islandOn) ? qty("in-iref24") : 0;
+        var ref36Qty = (masterOn && islandOn) ? qty("in-ref36") : 0;
         var ibep24Amt = ibep24Qty * (accLow.bep || 0);
         var bep26Amt = bep26Qty * (accLow.bep26 || 0);
         var bep36Amt = bep36Qty * (accLow.bep36 || 0);
@@ -3675,17 +3962,17 @@
         }
         if (r.panelsMaster !== "Yes") {
           rows.push(["Finish panels", "Not included", "\u2014", "off"]);
-        } else if (state.ref === "Yes") {
+        } else if (r.refQty > 0) {
           rows.push(["REF2496 \u2014 Refrigerator End Panel \u2014 24\u2033 W x 96\u2033 H", r.refQty + "\u00D7 REF2496 \u00D7 " + money(r.accLow.ref) + " \u00B7 " + r.lowers, money(r.refAmt), ""]);
         } else {
           rows.push(["REF2496 \u2014 Refrigerator End Panel \u2014 24\u2033 W x 96\u2033 H", "Not included", "\u2014", "off"]);
         }
-        if (r.panelsMaster === "Yes" && state.bep === "Yes") {
+        if (r.panelsMaster === "Yes" && r.bepQty > 0) {
           rows.push(["BEP24 \u2014 Base End Panel \u2014 24\u2033", r.bepQty + "\u00D7 BEP24 \u00D7 " + money(r.accLow.bep) + " \u00B7 " + r.lowers, money(r.bepAmt), ""]);
         } else if (r.panelsMaster === "Yes") {
           rows.push(["BEP24 \u2014 Base End Panel \u2014 24\u2033", "Not included", "\u2014", "off"]);
         }
-        if (r.panelsMaster === "Yes" && state.wep === "Yes") {
+        if (r.panelsMaster === "Yes" && r.wepQty > 0) {
           rows.push(["WEP \u2014 Wall End Panel \u2014 12\u2033 x wall height", r.wepQty + "\u00D7 WEP" + r.wallH + " \u00D7 " + money(r.accUp["wep" + r.wallH]) + " \u00B7 " + r.uppers, money(r.wepAmt), ""]);
         } else if (r.panelsMaster === "Yes") {
           rows.push(["WEP \u2014 Wall End Panel \u2014 12\u2033 x wall height", "Not included", "\u2014", "off"]);
@@ -3758,7 +4045,7 @@
       }
 
       function resetAll() {
-        state = { line: "Regular", box: "PB", lowers: "MNW", uppers: "", wallH: "30", tallH: "84", fridge: "36", cooking: "Stove", dish: "Yes", window: "No", asm: "RTA", crownType: "None", profile: "Silver", ibep24: "No", bep26: "No", bep36: "No", bep48: "No", iref24: "No", ref36: "No", picks: picksDefault("L-Shape"), corner: "No", baseCorner: "BBC", upperCorner: "WDC", panelsMaster: "No", ref: "No", bep: "No", wep: "No", hst: false, province: "Ontario", ktype: "L-Shape", fridgeH: "70", fridgeNear: "No", drawers: "No" };
+        state = { line: "Regular", box: "PB", lowers: "MNW", uppers: "", wallH: "30", tallH: "84", fridge: "36", cooking: "Stove", dish: "Yes", window: "No", asm: "RTA", crownType: "None", profile: "Silver", picks: picksDefault("L-Shape"), corner: "No", baseCorner: "BBC", upperCorner: "WDC", panelsMaster: "Yes", hst: false, province: "Ontario", ktype: "L-Shape", fridgeH: "70", fridgeNear: "No", drawers: "No" };
         segSet("seg-line", "Regular");
         segSet("seg-wallh", "30");
         segSet("seg-tallh", "84");
@@ -3769,21 +4056,12 @@
         segSet("seg-asm", "RTA");
         segSet("seg-crown", "None");
         segSet("seg-profile", "Silver");
-        segSet("seg-ibep24", "No");
-        segSet("seg-bep26", "No");
-        segSet("seg-bep36", "No");
-        segSet("seg-bep48", "No");
-        segSet("seg-iref24", "No");
-        segSet("seg-ref36", "No");
         ktypeSet("L-Shape");
         segSet("seg-fridgeh", "70");
         segSet("seg-fridgenear", "No");
         segSet("seg-base-corner", "BBC");
         segSet("seg-upper-corner", "WDC");
-        segSet("seg-panels-master", "No");
-        segSet("seg-ref", "No");
-        segSet("seg-bep", "No");
-        segSet("seg-wep", "No");
+        segSet("seg-panels-master", "Yes");
         refreshDrawers();
         $("in-base").value = "";
         $("in-wall").value = "";
@@ -3798,6 +4076,7 @@
         $("in-drawer-12").value = ""; $("in-drawer-15").value = ""; $("in-drawer-18").value = ""; $("in-drawer-21").value = ""; $("in-drawer-24").value = ""; $("in-drawer-27").value = ""; $("in-drawer-30").value = ""; $("in-drawer-33").value = ""; $("in-drawer-36").value = "";
         measure = { sink: null, window: null, hood: null };
         measureSel = null;
+        placeSel = null;
         $("measure-panel").hidden = true;
         discInput.value = "";
         $("chk-hst").checked = false;
@@ -3828,43 +4107,15 @@
       segWire("seg-fridge", function (v) { state.fridge = v; });
       segWire("seg-cooking", function (v) { state.cooking = v; });
       segWire("seg-window", function (v) { state.window = v; refreshWindow(); });
-      segWire("seg-dish", function (v) { state.dish = v; });
+      segWire("seg-dish", function (v) { state.dish = v; renderPlace(); });
       segWire("seg-drawers", function (v) { state.drawers = v; refreshDrawers(); });
       segWire("seg-asm", function (v) { state.asm = v; });
       segWire("seg-crown", function (v) { state.crownType = v; });
       segWire("seg-profile", function (v) { state.profile = v; });
-      segWire("seg-ibep24", function (v) { state.ibep24 = v; refreshPanels(); });
-      segWire("seg-bep26", function (v) { state.bep26 = v; refreshPanels(); });
-      segWire("seg-bep36", function (v) { state.bep36 = v; refreshPanels(); });
-      segWire("seg-bep48", function (v) { state.bep48 = v; refreshPanels(); });
-      segWire("seg-iref24", function (v) { state.iref24 = v; refreshPanels(); });
-      segWire("seg-ref36", function (v) { state.ref36 = v; refreshPanels(); });
-      /* Placement map clicks: tap a chip to select the item, then tap a
-         wall (or the island, where allowed) to move it there. */
-      (function () {
-        var pmHost = $("place-map");
-        if (!pmHost) return;
-        pmHost.addEventListener("click", function (e) {
-          var chipEl = e.target.closest("[data-item]");
-          if (chipEl) { placeSel = chipEl.getAttribute("data-item"); renderPlaceMap(); return; }
-          var wallEl = e.target.closest("[data-wall]");
-          if (wallEl && placeSel) {
-            var wv = wallEl.getAttribute("data-wall");
-            if (pickWallValid(placeSel, wv) && state.picks[placeSel] !== wv) {
-              state.picks[placeSel] = wv;
-              renderPlaceMap();
-              calc();
-            }
-          }
-        });
-      })();
-      segWire("seg-base-corner", function (v) { state.baseCorner = v; });
+                                          segWire("seg-base-corner", function (v) { state.baseCorner = v; });
       segWire("seg-upper-corner", function (v) { state.upperCorner = v; });
       segWire("seg-panels-master", function (v) { state.panelsMaster = v; refreshPanels(); });
-      segWire("seg-ref", function (v) { state.ref = v; refreshPanels(); });
-      segWire("seg-bep", function (v) { state.bep = v; refreshPanels(); });
-      segWire("seg-wep", function (v) { state.wep = v; refreshPanels(); });
-
+                  
       $("sel-lowers").addEventListener("change", function () { state.lowers = this.value; refreshCrown(); calc(); });
       $("sel-uppers").addEventListener("change", function () { state.uppers = this.value; refreshCrown(); calc(); });
       $("chk-hst").addEventListener("change", function () { state.hst = this.checked; refreshHst(); calc(); });
@@ -3913,9 +4164,9 @@
         if (r.tallAmt > 0) lines.push("Tall (" + r.tallH + "in): " + (r.tallDesign || "\u2014") + " \u2014 " + money(r.tallAmt));
         if (r.crownType && r.crownType !== "None" && r.crownAmt > 0) lines.push("Crown moulding (" + r.crownType + "): " + r.crownPcs + " pc x " + money(r.crownPer) + " \u2014 " + money(r.crownAmt));
         if (r.golaBars > 0) lines.push("GOLA channel (" + r.profile + "): " + r.golaBars + " bars x " + money(r.golaPer) + " \u00B7 covers " + r.golaIn + " in \u2014 " + money(r.golaAmt));
-        if (r.panelsMaster === "Yes" && state.ref === "Yes" && r.refAmt > 0) lines.push("REF2496 \u2014 Refrigerator End Panel \u2014 24in W x 96in H \u00D7" + r.refQty + ": " + money(r.refAmt));
-        if (r.panelsMaster === "Yes" && state.bep === "Yes" && r.bepAmt > 0) lines.push("BEP24 \u2014 Base End Panel \u2014 24in \u00D7" + r.bepQty + ": " + money(r.bepAmt));
-        if (r.panelsMaster === "Yes" && state.wep === "Yes" && r.wepAmt > 0) lines.push("WEP \u2014 Wall End Panel \u2014 12in x wall height \u00D7" + r.wepQty + ": " + money(r.wepAmt));
+        if (r.panelsMaster === "Yes" && r.refAmt > 0) lines.push("REF2496 \u2014 Refrigerator End Panel \u2014 24in W x 96in H \u00D7" + r.refQty + ": " + money(r.refAmt));
+        if (r.panelsMaster === "Yes" && r.bepAmt > 0) lines.push("BEP24 \u2014 Base End Panel \u2014 24in \u00D7" + r.bepQty + ": " + money(r.bepAmt));
+        if (r.panelsMaster === "Yes" && r.wepAmt > 0) lines.push("WEP \u2014 Wall End Panel \u2014 12in x wall height \u00D7" + r.wepQty + ": " + money(r.wepAmt));
         if (r.panelsMaster === "Yes" && r.ibep24Amt > 0) lines.push("BEP24 \u2014 Island Side Panel \u2014 24in \u00D7" + r.ibep24Qty + ": " + money(r.ibep24Amt));
         if (r.panelsMaster === "Yes" && r.bep26Amt > 0) lines.push("BEP26 \u2014 Island Side Panel \u2014 26in \u00D7" + r.bep26Qty + ": " + money(r.bep26Amt));
         if (r.panelsMaster === "Yes" && r.bep36Amt > 0) lines.push("BEP36 \u2014 Island Side Panel \u2014 36in \u00D7" + r.bep36Qty + ": " + money(r.bep36Amt));
@@ -3970,6 +4221,7 @@
       buildColours();
       refreshCrown();
       initMeasure();
+      initPlace();
       ktypeInit();
       refreshKType();
       refreshDrawers();
