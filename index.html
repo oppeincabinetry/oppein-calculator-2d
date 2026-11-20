@@ -1252,11 +1252,14 @@
          can take. Choosing a wall updates state.picks, the marker, the
          plan and the estimate in the same step. */
       var placeSel = null;
-      /* Items the user has actually placed (selected in the slider AND
-         given a wall in the item's panel). The mini layout starts as
-         bare lettered walls: a marker is drawn only for a placed item.
-         This is display only — the design and estimate always use the
-         automatic placements in state.picks regardless. */
+      /* Items the user has actually placed (selected in the slider).
+         The mini layout starts as bare lettered walls: a marker is
+         drawn only once its item has been selected, and it pops in in
+         the same update as the selection, on the wall the item's panel
+         shows as picked (its current pick, default included). Picking
+         another wall in the panel moves it. This is display only — the
+         design and estimate always use the automatic placements in
+         state.picks regardless. */
       var placeShown = {};
       var PLACE_ITEMS = [
         { id: "window", label: "Window", icon: '<rect x="4" y="3" width="16" height="18"/><path d="M12 3v18M4 12h16"/>' },
@@ -1417,12 +1420,12 @@
         var onWall = {};
         ["window", "fridge", "sink", "stove", "pantry"].forEach(function (it) {
           if (!placeItemVisible(it)) return;
-          /* Show-after-selection: until the user has placed the item
-             (slider selection + wall picked in its panel), the layout
-             stays bare — no marker is drawn for it. */
+          /* Show-after-selection: until the user selects the item in
+             the slider, the layout stays bare — no marker is drawn for
+             it. Once selected, the marker sits on the same wall the
+             item's panel shows as picked. */
           if (!placeShown[it]) return;
-          var w = state.picks[it];
-          if (w !== "Island" && !g.walls[w]) w = "A";
+          var w = placePickEffective(it);
           (onWall[w] = onWall[w] || []).push(it);
         });
         var out = ['<svg viewBox="0 0 320 190" role="img" aria-label="Kitchen layout — walls and item placement">'];
@@ -1536,6 +1539,12 @@
       }
       function selectPlace(item) {
         placeSel = item;
+        /* Selecting the item places it: its marker pops into the mini
+           layout in this same update, on its current wall — the panel
+           below already shows that wall as picked, so the layout must
+           agree with it immediately, not wait for a second tap on the
+           already-highlighted wall button. */
+        placeShown[item] = true;
         renderPlaceMap();
         syncPlaceSlider(true);
         renderPlacePanel();
@@ -1560,8 +1569,8 @@
             var w = b.getAttribute("data-value");
             var changed = state.picks[placeSel] !== w;
             state.picks[placeSel] = w;
-            /* Picking a wall is what puts the item on the mini layout:
-               from here on its marker is drawn on the picked wall. */
+            /* The marker is already on the layout from the selection;
+               picking a wall moves it to the picked wall. */
             placeShown[placeSel] = true;
             renderPlace();
             if (changed) calc();
