@@ -398,29 +398,21 @@
       .measure.hide-run .sub-field { margin-top: 0; }
       .card-plan { grid-column: 1; }
       .plan-help { margin: -6px 0 14px; line-height: 1.5; }
-      .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 10px; margin: 0 -2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-      .chips::-webkit-scrollbar { display: none; }
+      /* Measure options = ONE segmented bar, identical to every other
+         .seg control (e.g. the BBC / BLS / BER corner bar): a single
+         shared glass track, segments inside it, and the one sliding
+         orange pill (.seg-pill / .seg-glow, placed by segLayout) behind
+         the selected segment — never separate floating chips, so the
+         pill can never be clipped at a row edge. */
+      .chips.seg { max-width: none; margin: 0 0 12px; }
       .chip {
-        flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px;
-        appearance: none; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-soft);
-        min-height: 40px; padding: 7px 12px; border-radius: 999px; cursor: pointer;
-        background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.5));
-        border: 1px solid rgba(255,255,255,.95);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 6px 14px rgba(33,37,41,.08);
-        -webkit-tap-highlight-color: transparent; transition: transform .15s ease, color .2s ease, background .2s ease;
+        display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        white-space: nowrap; box-shadow: none;
       }
-      .chip:active { transform: scale(.95); }
-      .chip svg { width: 17px; height: 17px; flex: 0 0 auto; }
-      .chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.6px solid var(--muted); flex: 0 0 auto; }
-      .chip.anchored .chip-dot { background: var(--orange); border-color: var(--orange); }
+      .chips .chip { font-size: 13.5px; }
+      .chip svg { width: 16px; height: 16px; flex: 0 0 auto; }
       .chip .chip-val { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 700; }
-      .chip.active {
-        color: #fff; background: linear-gradient(135deg, #F97B3F 0%, var(--orange) 55%, var(--orange-dark) 100%);
-        border-color: transparent; box-shadow: 0 12px 26px rgba(239,101,38,.18), 0 4px 12px rgba(239,101,38,.10), inset 0 1px 0 rgba(255,255,255,.6);
-      }
       .chip.active .chip-val { color: rgba(255,255,255,.85); }
-      .chip.active .chip-dot { border-color: rgba(255,255,255,.9); }
-      .chip.active.anchored .chip-dot { background: #fff; }
       .measure-panel {
         border-radius: 16px; padding: 14px 16px; margin: 0 0 14px;
         background: linear-gradient(160deg, rgba(255,255,255,.66), rgba(255,255,255,.4));
@@ -463,6 +455,12 @@
       #plan-wrap svg { display: block; width: 100%; height: auto; touch-action: none; }
       .plan-empty { padding: 34px 20px; text-align: center; color: var(--muted); font-size: 15px; margin: 0; }
       .plan-caption { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 12px 2px 0; }
+      .plan-tootight {
+        padding: 14px 16px; text-align: center;
+        font-size: 15px; font-weight: 700; line-height: 1.45; color: #7A2E0E;
+        background: linear-gradient(180deg, rgba(239,101,38,.20), rgba(239,101,38,.13));
+        border-top: 1px solid rgba(239,101,38,.45);
+      }
       .site-notes { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin: 10px 2px 0; padding: 10px 12px; border-radius: 12px; background: rgba(239,101,38,.08); border: 1px solid rgba(239,101,38,.18); }
       .site-notes[hidden] { display: none; }
       .site-notes b { color: var(--ink); }
@@ -826,7 +824,7 @@
       <section class="card card-plan" aria-labelledby="h-plan">
         <h2 id="h-plan">2D Design — Measure on the Plan</h2>
         <p class="seg-note plan-help">Tap an item chip, then drag its marker along the wall — or tap the measurement bubble and type the exact inches. Positions are measured in inches along each leg from that leg's start, as drawn. Items never touched follow the functional layout automatically.</p>
-        <div class="chips" id="measure-chips" role="group" aria-label="Measure items"></div>
+        <div class="chips seg" id="measure-chips" role="group" aria-label="Measure items"></div>
         <div class="measure-panel" id="measure-panel" hidden>
           <div class="mp-main" id="mp-main">
             <span class="mp-label" id="mp-label">Position</span>
@@ -1601,6 +1599,9 @@
           LN(LX, x - 3, y2, x + 3, y2, 'stroke="#868E96" stroke-width="0.8"');
           T(LX, x + (side < 0 ? -4 : 4), (y1 + y2) / 2, label, 'text-anchor="middle" font-size="6.5" font-weight="600" fill="#495057"', -90);
         }
+        /* Too tight: walls + dimensions only — no cabinets, corners,
+           window, clearances or markers are painted at all. */
+        var suppress = !!(r && r.tooTight);
         var SEG_FILL = { cab: "#FFFFFF", sink: "#DCE9F5", dw: "#FDEBD7", range: "#FDE3CF", ct: "#FFFFFF", fridge: "#E2E8F0", corner: "#FFE8D6", filler: "#F1F3F5", gap4: "#FFF3CD", tall: "#E9ECEF" };
         function label2(leg, seg, depthC, fs, color) {
           var c = pointAt(leg, seg.s + seg.w / 2, depthC);
@@ -1624,6 +1625,7 @@
           LS.push(t);
         }
         function paintSeg(leg, seg, depth, isUpper) {
+          if (suppress) return;
           if (seg.kind === "corner" && /^(BER|BLS)/.test(seg.sku)) return;
           if (seg.kind === "ucorner" && /^(WER|WDC)/.test(seg.sku)) return;
           var rc = segRectFor(leg, seg.s, seg.w, depth);
@@ -1652,6 +1654,7 @@
           if (seg.w >= 8 || isUpper || seg.kind === "filler") label2(leg, seg, isUpper ? 6 : (seg.kind === "tall" ? 12 : seg.kind === "corner" ? 20.5 : 17), isUpper ? 5 : 5.8, isUpper ? "#495057" : "#212529");
         }
         function paintClearance(leg, s0, w, depth, withLabel) {
+          if (suppress) return;
           var rc = segRectFor(leg, s0, w, depth);
           R(LX, rc.x, rc.y, rc.w, rc.h, 'fill="#FFF3CD" stroke="#D9A404" stroke-width="0.8" stroke-dasharray="3 2"');
           if (withLabel) {
@@ -1770,13 +1773,13 @@
           wallV(lenA + 3, 0, 3 + lenB + tallTotal + 6);
           if (bcSku && bcSku.indexOf("BBC") === 0 && !baseFlip) paintClearance(legB, 24, 2, 24, true);
           if (bcSku && bcSku.indexOf("BBC") === 0 && baseFlip) paintClearance(legA, lenA - 26, 2, 24, true);
-          if (bcSku && !baseFlip && /^(BER|BLS)/.test(bcSku)) PG(LX, [[lenA - 33, 3], [lenA, 3], [lenA, 36], [lenA - 24, 36], [lenA - 24, 27], [lenA - 33, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
+          if (!suppress && bcSku && !baseFlip && /^(BER|BLS)/.test(bcSku)) PG(LX, [[lenA - 33, 3], [lenA, 3], [lenA, 36], [lenA - 24, 36], [lenA - 24, 27], [lenA - 33, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
           var ucWinHit = !upperFlip && legA.winInt && legA.winInt.s + legA.winInt.w > lenA - 24 && legA.winInt.s < lenA;
           if (ucSku && ucSku.indexOf("WBC") === 0 && !upperFlip) paintClearance(legB, 12, 2, 12, false);
           if (ucSku && ucSku.indexOf("WBC") === 0 && upperFlip) paintClearance(legA, lenA - 14, 2, 12, false);
-          if (ucSku && !upperFlip && !ucWinHit && ucSku.indexOf("WER") === 0) PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 12, 15], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
-          if (ucSku && !upperFlip && !ucWinHit && ucSku.indexOf("WDC") === 0) { PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenA - 12, 10.5, ucSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
-          if (bcSku && !baseFlip && /^(BER|BLS)/.test(bcSku)) T(LX, lenA - 16, 23.5, bcSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
+          if (!suppress && ucSku && !upperFlip && !ucWinHit && ucSku.indexOf("WER") === 0) PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 12, 15], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
+          if (!suppress && ucSku && !upperFlip && !ucWinHit && ucSku.indexOf("WDC") === 0) { PG(LX, [[lenA - 24, 3], [lenA, 3], [lenA, 27], [lenA - 12, 27], [lenA - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenA - 12, 10.5, ucSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
+          if (!suppress && bcSku && !baseFlip && /^(BER|BLS)/.test(bcSku)) T(LX, lenA - 16, 23.5, bcSku, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
           /* Talls grouped at the far (bottom) end of leg B */
           var tallB = 0;
           tallList.forEach(function (sk) { var w = skuW(sk); paintSeg(legB, { kind: /^(PC|HPC)/.test(sk) ? "tall" : "cab", sku: sk, s: lenB + tallB, w: w }, 24, false); tallB += w; });
@@ -1824,7 +1827,7 @@
           wallV(0, 0, botY + 6);
           wallV(lenUB + 3, 0, botY + 6);
           if (bcU && bcU.indexOf("BBC") === 0) { paintClearance(legUA, 24, 2, 24, true); paintClearance(legUC, 24, 2, 24, true); }
-          if (bcU && /^(BER|BLS)/.test(bcU)) {
+          if (!suppress && bcU && /^(BER|BLS)/.test(bcU)) {
             PG(LX, [[0, 3], [33, 3], [33, 27], [27, 27], [27, 36], [3, 36], [3, 27], [0, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
             PG(LX, [[lenUB - 33, 3], [lenUB, 3], [lenUB, 36], [lenUB - 24, 36], [lenUB - 24, 27], [lenUB - 33, 27]], 'fill="#FFE8D6" stroke="#D14E14" stroke-width="1"');
             T(LX, 14, 23.5, bcU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"');
@@ -1833,11 +1836,11 @@
           var ucWinL = legUB.winInt && legUB.winInt.s < 24;
           var ucWinR = legUB.winInt && legUB.winInt.s + legUB.winInt.w > lenUB - 24;
           if (ucU && ucU.indexOf("WBC") === 0) { paintClearance(legUA, 12, 2, 12, false); paintClearance(legUC, 12, 2, 12, false); }
-          if (ucU && ucU.indexOf("WER") === 0) {
+          if (!suppress && ucU && ucU.indexOf("WER") === 0) {
             if (!ucWinL) PG(LX, [[0, 3], [24, 3], [24, 15], [15, 15], [15, 27], [3, 27], [3, 15], [0, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
             if (!ucWinR) PG(LX, [[lenUB - 24, 3], [lenUB, 3], [lenUB, 27], [lenUB - 12, 27], [lenUB - 12, 15], [lenUB - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"');
           }
-          if (ucU && ucU.indexOf("WDC") === 0) {
+          if (!suppress && ucU && ucU.indexOf("WDC") === 0) {
             if (!ucWinL) { PG(LX, [[0, 3], [24, 3], [24, 15], [12, 27], [0, 27]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, 11.5, 10.5, ucU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
             if (!ucWinR) { PG(LX, [[lenUB - 24, 3], [lenUB, 3], [lenUB, 27], [lenUB - 12, 27], [lenUB - 24, 15]], 'fill="rgba(255,232,214,.8)" stroke="#D14E14" stroke-width="1" stroke-dasharray="3.5 2.5"'); T(LX, lenUB - 11.5, 10.5, ucU, 'text-anchor="middle" font-size="5.8" font-weight="700" fill="#212529"'); }
           }
@@ -1862,14 +1865,42 @@
           BH = Math.max(BH, 96);
         }
 
-        /* Paint base + upper segments for all legs */
+        /* Compose every leg first, then scan the composed segments: any
+           overlap or spill past a leg end means the layout cannot be drawn
+           without squeezing — it joins the too-tight state instead of
+           painting overlapped cabinets. */
         Object.keys(legs).forEach(function (k) {
           var leg = legs[k];
           leg.baseSegs = closeGaps(flexFillers(leg.baseSegs || [], "cab", r.wallH), leg.off || 0, leg.closeEnd != null ? leg.closeEnd : leg.len, null, "cab", r.wallH);
           leg.upperSegs = closeGaps(flexFillers(leg.upperSegs || [], "u", r.wallH), null, leg.uCloseEnd != null ? leg.uCloseEnd : leg.len, leg.winInt || null, "u", r.wallH);
+        });
+        if (!suppress) {
+          function segsBad(segs, len) {
+            var sorted = (segs || []).slice().sort(function (a, b) { return a.s - b.s; });
+            for (var i = 0; i < sorted.length; i++) {
+              var sg = sorted[i];
+              if (sg.w > 0.01 && (sg.s < -0.75 || sg.s + sg.w > len + 0.75)) return true;
+              if (i && sg.s < sorted[i - 1].s + sorted[i - 1].w - 0.75) return true;
+            }
+            return false;
+          }
+          Object.keys(legs).forEach(function (k) {
+            var leg = legs[k];
+            /* A leg with no entered length is not a leg yet — its
+               placeholder segments are not evidence of infeasibility. */
+            if (legMap[k] && !(legMap[k].ft > 0)) return;
+            if (segsBad(leg.baseSegs, leg.len) || segsBad(leg.upperSegs, leg.len)) suppress = true;
+            if (leg.winInt) (leg.upperSegs || []).forEach(function (sg) {
+              if (sg.s < leg.winInt.s + leg.winInt.w - 0.75 && sg.s + sg.w > leg.winInt.s + 0.75) suppress = true;
+            });
+          });
+        }
+        /* Paint base + upper segments for all legs */
+        Object.keys(legs).forEach(function (k) {
+          var leg = legs[k];
           (leg.baseSegs || []).forEach(function (seg) { paintSeg(leg, seg, 24, false); });
           (leg.upperSegs || []).forEach(function (seg) { paintSeg(leg, seg, 12, true); });
-          if (leg.winInt) {
+          if (!suppress && leg.winInt) {
             var wp = wallPoint(leg, leg.winInt.s);
             R(LX, wp.x, wp.y - 4.5, leg.winInt.w, 9, 'fill="#8ED0F0" stroke="#5B8DB8" stroke-width="0.9"');
             LN(LX, wp.x, wp.y, wp.x + leg.winInt.w, wp.y, 'stroke="#FFFFFF" stroke-width="1.6"');
@@ -1919,11 +1950,11 @@
           LM.push('<line x1="' + n(c.x) + '" y1="' + n(c.y) + '" x2="' + n(a.x) + '" y2="' + n(a.y) + '" stroke="' + (sel ? "#EF6526" : "#ADB5BD") + '" stroke-width="0.7"/>');
           LM.push('<g class="plan-marker" data-m="' + item + '"><circle cx="' + n(c.x) + '" cy="' + n(c.y) + '" r="8" fill="transparent"/><circle cx="' + n(c.x) + '" cy="' + n(c.y) + '" r="4.5" fill="' + (sel ? "#EF6526" : "#FFFFFF") + '" stroke="' + (sel ? "#D14E14" : "#212529") + '" stroke-width="1.1"/><text x="' + n(c.x) + '" y="' + n(c.y + 1.6) + '" text-anchor="middle" font-size="4.6" font-weight="700" fill="' + (sel ? "#FFFFFF" : "#212529") + '">' + letter + '</text></g>');
         }
-        if (items.window) marker("window", items.window.leg, items.window.sPoint, "W");
-        if (items.sink) marker("sink", items.sink.leg, items.sink.sPoint, "S");
-        if (items.hood) marker("hood", items.hood.leg, items.hood.sPoint, "H");
-        if (items.fridge) marker("fridge", items.fridge.leg, items.fridge.sPoint, "F");
-        if (measureSel && items[measureSel] && measureSel !== "fridge") {
+        if (!suppress && items.window) marker("window", items.window.leg, items.window.sPoint, "W");
+        if (!suppress && items.sink) marker("sink", items.sink.leg, items.sink.sPoint, "S");
+        if (!suppress && items.hood) marker("hood", items.hood.leg, items.hood.sPoint, "H");
+        if (!suppress && items.fridge) marker("fridge", items.fridge.leg, items.fridge.sPoint, "F");
+        if (!suppress && measureSel && items[measureSel] && measureSel !== "fridge") {
           var mit = items[measureSel], mleg = mit.leg;
           var pa = pointAt(mleg, 0, 33), pb = pointAt(mleg, mit.sPoint, 33);
           LN(LM, pa.x, pa.y, pb.x, pb.y, 'stroke="#EF6526" stroke-width="1.5"');
@@ -1937,7 +1968,7 @@
         var vbX = minX, vbY = -54, vbW = BW + 50 - minX, vbH = BH + 48 - vbY;
         var svg = '<svg viewBox="' + n(vbX) + ' ' + n(vbY) + ' ' + n(vbW) + ' ' + n(vbH) + '" role="img" aria-label="2D kitchen plan">'
           + LW.join("") + LS.join("") + LX.join("") + LM.join("") + '</svg>';
-        return { svg: svg, plan: { legs: legs, items: items, winW: winW } };
+        return { svg: svg, plan: { legs: legs, items: suppress ? {} : items, winW: winW }, tooTight: suppress };
       }
 
       function drawPlan(r) {
@@ -1952,6 +1983,24 @@
           planState = {}; lastPlan = null; updateChips(); return;
         }
         var scene = buildScene(r);
+        var cap = document.querySelector(".plan-caption");
+        if (cap && !cap.getAttribute("data-def")) cap.setAttribute("data-def", cap.textContent);
+        if (scene.tooTight) {
+          /* Rebuild with suppression on from the first paint, so no
+             cabinet, corner, tall or marker from the squeezed layout
+             survives — walls and dimensions only, note at the bottom. */
+          if (!r.tooTight) {
+            var r2 = {}; for (var kk in r) r2[kk] = r[kk]; r2.tooTight = true;
+            scene = buildScene(r2);
+          }
+          wrap.innerHTML = scene.svg + '<div class="plan-tootight" role="alert">Too tight to design — please update the dimensions</div>';
+          planState = {}; lastPlan = null; measureSel = null;
+          var mp = $("measure-panel"); if (mp) mp.hidden = true;
+          if (cap) cap.textContent = "The mandatory items do not fit these leg lengths — increase a leg or change the corner to design this kitchen.";
+          updateChips();
+          return;
+        }
+        if (cap && cap.getAttribute("data-def")) cap.textContent = cap.getAttribute("data-def");
         wrap.innerHTML = scene.svg;
         lastPlan = scene.plan;
         planState = scene.plan.items;
@@ -1970,14 +2019,24 @@
         var chips = document.querySelectorAll(".chip");
         for (var i = 0; i < chips.length; i++) {
           var id = chips[i].getAttribute("data-chip");
-          var anchored = id === "fridge" ? state.fridgeNear === "Yes" : measure[id] != null;
-          chips[i].classList.toggle("anchored", anchored);
           chips[i].classList.toggle("active", measureSel === id);
+          chips[i].setAttribute("aria-pressed", measureSel === id ? "true" : "false");
           if (id === "window") chips[i].style.display = state.window === "Yes" ? "" : "none";
           var val = chips[i].querySelector(".chip-val");
           if (id === "fridge") val.textContent = state.fridgeH + "″";
           else if (planState[id]) val.textContent = Math.round(planState[id].value) + "″";
           else val.textContent = "";
+        }
+        /* Slide the one orange pill to the selected segment (or hide it
+           when nothing is selected) — same segLayout as every other bar.
+           Runs after the window segment's display toggle, so segment
+           widths are measured in their final layout. When the pill was
+           hidden (no selection), it snaps straight into place instead of
+           growing in from a zero-width blob at the track's left edge. */
+        var mc = $("measure-chips");
+        if (mc) {
+          var mcPill = mc.querySelector(".seg-pill");
+          segLayout(mc, !!(mcPill && mcPill.style.opacity === "1"));
         }
       }
       function syncMeasurePanel() {
@@ -2047,8 +2106,8 @@
         var wrap = $("measure-chips");
         MEASURE_ITEMS.forEach(function (it) {
           var b = document.createElement("button");
-          b.type = "button"; b.className = "chip"; b.setAttribute("data-chip", it.id);
-          b.innerHTML = '<span class="chip-dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + it.icon + '</svg><span>' + it.label + '</span><span class="chip-val"></span>';
+          b.type = "button"; b.className = "chip"; b.setAttribute("data-chip", it.id); b.setAttribute("aria-pressed", "false");
+          b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + it.icon + '</svg><span>' + it.label + '</span><span class="chip-val"></span>';
           b.addEventListener("click", function () { selectMeasure(it.id, false); });
           wrap.appendChild(b);
         });
@@ -2296,6 +2355,57 @@
           islandList = legList("baseFill", unitsFor(islandFt));
           denomFt += islandFt;
         }
+        /* ---- Too-tight detection ----
+           Per leg, the corner footprint (carried on that leg, or owed to
+           the corner on the adjoining leg) plus the mandatory items as
+           finally placed — fridge, sink base SB30, dishwasher (after any
+           wrap to the other leg), range — must fit inside the leg length
+           with real cabinets. Talls sit at a leg end and extend that
+           leg's dimension, so they never make a leg too tight. A leg
+           with no entered length is skipped. If any leg fails, the plan
+           is not drawn squeezed/overlapped: drawPlan shows the walls and
+           dimensions only, with the too-tight note at the bottom. */
+        var tooTight = false;
+        (function () {
+          var fridgeW2 = parseInt(state.fridge, 10);
+          var dwW2 = state.dish === "Yes" ? 24 : 0;
+          var gap2 = state.fridgeNear === "Yes" ? 4 : 0;
+          var cbW2 = state.baseCorner === "BBC" ? 42 : 33;
+          var cbOwed2 = state.baseCorner === "BBC" ? 26 : 33;
+          var ucW2 = state.upperCorner === "WBC" ? 27 : 24;
+          var ucOwed2 = state.upperCorner === "WBC" ? 14 : 24;
+          function ftOf(key) { for (var i = 0; i < planLegs.length; i++) if (planLegs[i].key === key) return planLegs[i].ft * 12; return 0; }
+          function over(need, len) { return len > 0 && need > len + 0.01; }
+          if (ktype === "Straight" || ktype === "Island") {
+            var lenM2 = ftOf("Main");
+            if (over(fridgeW2 + gap2 + 30 + dwW2 + 30, lenM2)) tooTight = true;
+            if (state.window === "Yes" && over(winW, lenM2)) tooTight = true;
+          } else if (ktype === "Galley") {
+            var lenGA2 = ftOf("A"), lenGB2 = ftOf("B");
+            if (over(fridgeW2 + gap2 + 30 + dwW2, lenGA2)) tooTight = true;
+            if (over(30, lenGB2)) tooTight = true;
+            if (state.window === "Yes" && over(winW, lenGA2)) tooTight = true;
+          } else if (ktype === "L-Shape" || ktype === "L+Island") {
+            var lenA2 = ftOf("A"), lenB2 = ftOf("B");
+            var footA2b = baseFlipL ? cbOwed2 : cbW2;
+            var footB2b = baseFlipL ? cbW2 : cbOwed2;
+            if (over(fridgeW2 + gap2 + 30 + (dwWrapToB ? 0 : dwW2) + footA2b, lenA2)) tooTight = true;
+            if (over(footB2b + 30 + (dwWrapToB ? dwW2 : 0), lenB2)) tooTight = true;
+            var uFootA2 = upperFlipL ? ucOwed2 : ucW2;
+            var uFootB2 = upperFlipL ? ucW2 : ucOwed2;
+            if (over(uFootA2 + fridgeW2, lenA2)) tooTight = true;
+            if (over(uFootB2 + 30, lenB2)) tooTight = true;
+            if (state.window === "Yes" && over(winW, lenA2)) tooTight = true;
+          } else if (ktype === "U-Shape") {
+            var lenUA2 = ftOf("A"), lenUB2 = ftOf("B"), lenUC2 = ftOf("C");
+            if (over(cbW2 + cbW2 + 30 + dwW2, lenUB2)) tooTight = true;
+            if (over(cbOwed2 + fridgeW2 + gap2, lenUA2)) tooTight = true;
+            if (over(cbOwed2 + 30, lenUC2)) tooTight = true;
+            if (over(ucOwed2 + fridgeW2, lenUA2)) tooTight = true;
+            if (over(ucOwed2 + 30, lenUC2)) tooTight = true;
+            if (state.window === "Yes" && over(winW, lenUB2)) tooTight = true;
+          }
+        })();
         var islandPriced = priceList(islandList, lowKey);
         var islandAmt = islandOn ? roundDollar(islandPriced.price) : 0;
 
@@ -2372,7 +2482,7 @@
           tallDesign: compressList(tallList),
           ktype: ktype, islandOn: islandOn, islandFt: islandFt, islandAmt: islandAmt, asmIsland: asmIsland,
           islandDesign: compressList(islandList), planLegs: planLegs, tallListRaw: tallList, islandListRaw: islandList, winW: winW,
-          fridgeW: parseInt(state.fridge, 10), dwWrapToB: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL, cooking: state.cooking, dish: state.dish, windowOn: state.window
+          fridgeW: parseInt(state.fridge, 10), dwWrapToB: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL, cooking: state.cooking, dish: state.dish, windowOn: state.window, tooTight: tooTight
         };
         render(lastResult);
       }
