@@ -496,7 +496,7 @@
          (Window / Fridge / Sink / Stove / Pantry) fit the phone-width
          track with a compact icon + label per segment. */
       .place-slider { flex-wrap: nowrap; margin: 0; max-width: none; }
-      .place-slider .chip { flex: 1 1 0; min-width: 0; font-size: 11px; letter-spacing: -.1px; gap: 2px; padding: 8px 1px; }
+      .place-slider .chip { flex: 1 1 0; min-width: 0; font-size: 10.5px; letter-spacing: -.3px; gap: 2px; padding: 8px 1px; }
       .place-slider .chip svg { width: 11px; height: 11px; }
       .place-slider .chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
       #place-panel { margin: 12px 0 0; }
@@ -1222,12 +1222,32 @@
            DEFAULT_PICKS assignment — fall back to the L-Shape defaults. */
         var d = (typeof DEFAULT_PICKS !== "undefined" && DEFAULT_PICKS) ? (DEFAULT_PICKS[kt] || DEFAULT_PICKS["L-Shape"]) : null;
         if (!d) d = { window: "A", fridge: "A", sink: "A", stove: "B", pantry: "B" };
-        return { window: d.window, fridge: d.fridge, sink: d.sink, stove: d.stove, pantry: d.pantry };
+        /* dw: null = the dishwasher has no explicit wall pick yet, so
+           it follows the sink (its default). An explicit pick is a
+           wall key ("A" / "B" / "C") chosen in the placement panel. */
+        return { window: d.window, fridge: d.fridge, sink: d.sink, stove: d.stove, pantry: d.pantry, dw: null };
       }
       function arrangementIsDefault() {
         var d = DEFAULT_PICKS[state.ktype];
         if (!d || !state.picks) return true;
-        return state.picks.window === d.window && state.picks.fridge === d.fridge && state.picks.sink === d.sink && state.picks.stove === d.stove;
+        if (!(state.picks.window === d.window && state.picks.fridge === d.fridge && state.picks.sink === d.sink && state.picks.stove === d.stove)) return false;
+        /* An explicit dishwasher pick away from the sink's (default)
+           wall is a picked layout too: the generic composer runs so
+           the DW can wrap to the picked wall. A pick equal to the
+           sink's wall — or no pick at all — stays automatic. */
+        var dwEff = state.picks.dw || state.picks.sink;
+        return dwEff === d.sink;
+      }
+      /* Effective dishwasher location for this design: "Island" when
+         the sink sits on the island (the DW follows it there), else
+         the user's explicit wall pick when it is still a wall this
+         kitchen offers, else the sink's wall (the default). */
+      function dwPickEff() {
+        if (!state.picks) return null;
+        if (state.picks.sink === "Island") return "Island";
+        var d = state.picks.dw;
+        if (d && typeof placeWallOffers === "function" && placeWallOffers("dishwasher").indexOf(d) >= 0) return d;
+        return state.picks.sink;
       }
       /* BTC18 sink-cluster rule: when the garbage pull-out is selected
          and the sink leg cannot fit fridge + corner + sink + dishwasher
@@ -1298,15 +1318,20 @@
         { id: "fridge", label: "Fridge", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M6 10h12M9 6v2M9 13v3"/>' },
         { id: "sink", label: "Sink", icon: '<path d="M4 11h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M9 11V7a3 3 0 0 1 6 0"/>' },
         { id: "stove", label: "Stove", icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/><path d="M6.5 15.5h11"/>' },
+        { id: "dishwasher", label: "Dishwasher", icon: '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M5 8h14M9 13h6M9 16.5h6"/>' },
         { id: "pantry", label: "Pantry", icon: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M12 3v18"/>' }
       ];
-      var PLACE_LABEL = { window: "Window", fridge: "Fridge", sink: "Sink", stove: "Stove", pantry: "Pantry" };
+      var PLACE_LABEL = { window: "Window", fridge: "Fridge", sink: "Sink", stove: "Stove", pantry: "Pantry", dishwasher: "Dishwasher" };
       function placeItemVisible(it) {
         /* A placement entry exists only for an item that is actually in
            the design: the Window only when switched on, the Pantry only
-           when tall cabinets are entered (Tall = 0 means no pantry). */
+           when tall cabinets are entered (Tall = 0 means no pantry),
+           and the Dishwasher only while Dishwasher = Yes (the question
+           itself defaults to Yes, so the entry is there on fresh load;
+           switching to No removes the entry and the DW from the design). */
         if (it === "window") return state.window === "Yes";
         if (it === "pantry") return num("in-tall") > 0;
+        if (it === "dishwasher") return state.dish === "Yes";
         return true;
       }
       function pickWallValid(item, wall) {
@@ -1326,11 +1351,17 @@
         }
         return wall === "A" || wall === "B";
       }
-      /* The dishwasher has NO placement control: it is placed
-         automatically, immediately beside the sink base — on the sink's
-         leg, or wrapped around the corner to sit immediately after the
-         corner cabinet on the adjoining leg when the sink leg cannot
-         fit it (the calc engine's dwWrapToB). */
+      /* The dishwasher IS a placement item (shown only while
+         Dishwasher = Yes): its panel offers the walls, defaulting to
+         the sink's wall, where it composes immediately beside the
+         sink base. Picking the adjoining wall wraps it around the
+         corner to sit immediately after the corner cabinet on that
+         wall — the old automatic wrap, now user-chosen (the automatic
+         layout still wraps on spacing when no pick is made). When the
+         sink is on an island the DW follows it into the island and
+         the panel says so instead of offering walls. pickWallValid
+         above already gives the dishwasher exactly the sink's walls
+         (never the Island — that case is automatic). */
       function placeWallOffers(item) {
         var g = placeGeom(state.ktype);
         return ["A", "B", "C", "Island"].filter(function (w) {
@@ -1340,6 +1371,10 @@
       }
       function placePickEffective(item) {
         var offers = placeWallOffers(item);
+        if (item === "dishwasher") {
+          var dwE = dwPickEff();
+          return offers.indexOf(dwE) >= 0 ? dwE : offers[0];
+        }
         var cur = state.picks[item];
         return offers.indexOf(cur) >= 0 ? cur : offers[0];
       }
@@ -1398,10 +1433,14 @@
         seg.innerHTML = "";
         keep.forEach(function (nd) { seg.appendChild(nd); });
         var cur = placePickEffective(item);
+        /* Dishwasher on an island sink: no wall choice exists — the
+           DW follows the sink into the island automatically, and the
+           panel says so instead of offering walls. */
+        var dwIsl = item === "dishwasher" && dwPickEff() === "Island";
         /* Same title-above, bar-below layout for every item; only the
            title's wording follows the current pick (wall vs island). */
-        $("place-panel-label").textContent = PLACE_LABEL[item] + (item === "pantry" ? " — at the end of wall" : cur === "Island" ? " — on the island" : " — on wall");
-        placeWallOffers(item).forEach(function (w) {
+        $("place-panel-label").textContent = PLACE_LABEL[item] + (item === "pantry" ? " — at the end of wall" : (cur === "Island" || dwIsl) ? " — on the island" : item === "dishwasher" && cur === state.picks.sink ? " — beside the sink" : " — on wall");
+        if (!dwIsl) placeWallOffers(item).forEach(function (w) {
           var b = document.createElement("button");
           b.type = "button"; b.setAttribute("data-value", w);
           b.setAttribute("aria-pressed", w === cur ? "true" : "false");
@@ -1414,6 +1453,8 @@
         else if (item === "window") nt = "The window sits on this wall; the sink stays centred under it when they share a wall.";
         else if (item === "sink" && cur === "Island") nt = "The sink base sits in the island run — the dishwasher follows it into the island, beside the sink.";
         else if (item === "stove" && cur === "Island") nt = "The range sits in the island — its 30\u2033 zone is reserved in the island run.";
+        else if (item === "dishwasher" && dwIsl) nt = "The sink is on the island, so the dishwasher follows it into the island, beside the sink — no wall choice needed.";
+        else if (item === "dishwasher") nt = cur === state.picks.sink ? "Beside the sink on wall " + cur + "." : "Immediately after the corner cabinet on wall " + cur + " — as close to the sink as that wall allows.";
         note.textContent = nt;
         note.hidden = !nt;
         requestAnimationFrame(function () { segLayout(seg, false); });
@@ -1455,8 +1496,11 @@
             var b = e.target.closest("button");
             if (!b || !placeSel) return;
             var w = b.getAttribute("data-value");
-            var changed = state.picks[placeSel] !== w;
-            state.picks[placeSel] = w;
+            /* The dishwasher's pick lives in picks.dw (null = follow
+               the sink); every other item's pick is its own key. */
+            var key = placeSel === "dishwasher" ? "dw" : placeSel;
+            var changed = state.picks[key] !== w;
+            state.picks[key] = w;
             renderPlace();
             if (changed) calc();
           });
@@ -1755,7 +1799,7 @@
          panel quantities): a manual panel edit wins until this changes. */
       function designSig() {
         function v(id) { var el = $(id); return el ? el.value : ""; }
-        return [state.ktype, state.picks.window, state.picks.fridge, state.picks.sink, state.picks.stove, state.picks.pantry, state.baseCorner, state.upperCorner, state.fridge, state.fridgeNear, state.window, state.cooking, state.dish, state.wallH, state.tallH, state.accMaster, state.btc, state.spice, state.bsr, v("in-legA"), v("in-legB"), v("in-legC"), v("in-base"), v("in-island"), v("in-tall"), v("in-windoww")].join("|");
+        return [state.ktype, state.picks.window, state.picks.fridge, state.picks.sink, state.picks.stove, state.picks.pantry, state.picks.dw, state.baseCorner, state.upperCorner, state.fridge, state.fridgeNear, state.window, state.cooking, state.dish, state.wallH, state.tallH, state.accMaster, state.btc, state.spice, state.bsr, v("in-legA"), v("in-legB"), v("in-legC"), v("in-base"), v("in-island"), v("in-tall"), v("in-windoww")].join("|");
       }
       var panelManual = {};
       var lastSugg = null;
@@ -2003,7 +2047,18 @@
 
       function placeRangeRun(zs, ze, parsed, o) {
         var segs = [], end = ze, fridgeSeg = null, gapSeg = null, rangeSeg = null;
-        if (o.fridgeW > 0) {
+        if (o.fridgeW > 0 && o.fridgeAtStart) {
+          /* Fridge anchored at the START (outer) end of the run — it
+             always sits in an end slot, never between cabinets. */
+          var g0 = o.nearGap ? 4 : 0;
+          var rp0 = o.refP || 0;
+          var fS0 = zs + g0 + (rp0 === 2 ? 0.75 : 0);
+          fridgeSeg = { kind: "fridge", sku: "FRIDGE", s: fS0, w: o.fridgeW };
+          if (rp0 === 2) segs.push({ kind: "refp", sku: "REF", s: fS0 - 0.75, w: 0.75 });
+          if (rp0 >= 1) segs.push({ kind: "refp", sku: "REF", s: fS0 + o.fridgeW, w: 0.75 });
+          if (g0) gapSeg = { kind: "gap4", sku: "4″ GAP", s: zs, w: g0 };
+          zs = fS0 + o.fridgeW + (rp0 >= 1 ? 0.75 : 0);
+        } else if (o.fridgeW > 0) {
           var g = o.nearGap ? 4 : 0;
           /* REF2496 panels flank the fridge: 3/4in per side taken from
              the run (qty 1 = inner side, qty 2 = both sides). */
@@ -2048,7 +2103,19 @@
 
       function placeFillRun(zs, ze, parsed, o) {
         var segs = [], end = ze, fridgeSeg = null, gapSeg = null, cur = zs;
-        if (o.fridgeW > 0) {
+        if (o.fridgeW > 0 && o.fridgeAtStart) {
+          /* Fridge anchored at the START (outer) end of the run: the
+             fills compose after it, toward the corner — the fridge is
+             never composed between two cabinets mid-run. */
+          var g0 = o.nearGap ? 4 : 0;
+          var rp0 = o.refP || 0;
+          var fS0 = zs + g0 + (rp0 === 2 ? 0.75 : 0);
+          fridgeSeg = { kind: "fridge", sku: "FRIDGE", s: fS0, w: o.fridgeW };
+          if (rp0 === 2) segs.push({ kind: "refp", sku: "REF", s: fS0 - 0.75, w: 0.75 });
+          if (rp0 >= 1) segs.push({ kind: "refp", sku: "REF", s: fS0 + o.fridgeW, w: 0.75 });
+          if (g0) gapSeg = { kind: "gap4", sku: "4″ GAP", s: zs, w: g0 };
+          cur = fS0 + o.fridgeW + (rp0 >= 1 ? 0.75 : 0);
+        } else if (o.fridgeW > 0) {
           var g = o.nearGap ? 4 : 0;
           /* REF2496 panels flank the fridge: 3/4in per side taken from
              the run (qty 1 = inner side, qty 2 = both sides). */
@@ -2164,6 +2231,67 @@
         return segs;
       }
 
+
+      /* ---- Sink–stove separation (HARD rule) ----
+         The sink and the range must NEVER compose directly adjacent:
+         no RANGE (or cooktop) flush against SB30 or against its
+         dishwasher / BTC18 cluster. When a composed leg has them
+         flush, one real cabinet (12in+, never the BTC18 or a spice
+         rack — those have their own placement rules) is moved from
+         elsewhere on the same leg to sit between the range and the
+         cluster, and the leg's segments are re-laid in order (total
+         width unchanged, so pricing and feasibility are untouched).
+         Returns false when the leg holds no cabinet that could
+         separate them — the caller then reads the layout as too
+         tight rather than drawing them adjacent. */
+      function separateSinkStoveSegs(segs) {
+        var sink = null, range = null, i, sg;
+        for (i = 0; i < segs.length; i++) {
+          sg = segs[i];
+          if (sg.kind === "sink" && !sink) sink = sg;
+          if ((sg.kind === "range" || sg.kind === "ct") && !range) range = sg;
+        }
+        if (!sink || !range) return true;
+        /* Cluster extent: the sink plus any DW / BTC18 segments
+           contiguous with it. */
+        var c0 = sink.s, c1 = sink.s + sink.w, grew = true;
+        while (grew) {
+          grew = false;
+          for (i = 0; i < segs.length; i++) {
+            sg = segs[i];
+            var inCluster = (sg.kind === "dw") || (sg.kind === "cab" && sg.sku === "BTC18");
+            if (!inCluster || sg.w <= 0.01) continue;
+            if (sg.s >= c0 - 0.75 && sg.s + sg.w <= c1 + 0.75) continue;
+            if (sg.s < c1 + 0.75 && sg.s + sg.w > c0 - 0.75) { c0 = Math.min(c0, sg.s); c1 = Math.max(c1, sg.s + sg.w); grew = true; }
+          }
+        }
+        var adjacent = (range.s + range.w > c0 - 0.75 && range.s < c0 + 0.75) || (range.s < c1 + 0.75 && range.s + range.w > c1 - 0.75);
+        /* Adjacency means the range's edge touches the cluster's edge. */
+        adjacent = Math.abs(range.s + range.w - c0) < 0.75 || Math.abs(c1 - range.s) < 0.75;
+        if (!adjacent) return true;
+        var donor = null;
+        for (i = 0; i < segs.length; i++) {
+          sg = segs[i];
+          if (sg.kind !== "cab" || sg.w < 12) continue;
+          if (sg.sku === "BTC18" || /^BSR/.test(sg.sku || "")) continue;
+          donor = sg; break;
+        }
+        if (!donor) return false;
+        var order = segs.slice().sort(function (a, b) { return a.s - b.s; });
+        var startS = order.length ? order[0].s : 0;
+        order.splice(order.indexOf(donor), 1);
+        /* Re-find the cluster's first/last segment in the new order. */
+        var ci0 = -1, ci1 = -1, ri = -1;
+        order.forEach(function (s2, ix) {
+          if (s2 === sink || s2.kind === "dw" || (s2.kind === "cab" && s2.sku === "BTC18")) { if (ci0 < 0) ci0 = ix; ci1 = ix; }
+          if (s2 === range) ri = ix;
+        });
+        if (ri >= 0 && ri < ci0) order.splice(ci0, 0, donor);
+        else order.splice(ci1 + 1, 0, donor);
+        var cur = startS;
+        order.forEach(function (s2) { s2.s = cur; cur += s2.w; });
+        return true;
+      }
 
       /* ================= Dev copy: plan scene + measure interactions ================= */
       function ktypeSet(v) {
@@ -2362,7 +2490,7 @@
           var end = o.end != null ? o.end : o.off + leg.len;
           var off = o.off, pre = [];
           if (o.dwAtStart) { pre.push({ kind: "dw", sku: "DW", s: off, w: o.dwAtStart }); off += o.dwAtStart; }
-          var placed = placeRangeRun(off, end, parsed, { fridgeW: o.fridge ? fridgeW : 0, nearGap: nearGap, refP: refSides, hoodCentre: hoodAnchor, template: o.template || "fillFirst", cooktop: r.cooking === "Cooktop" });
+          var placed = placeRangeRun(off, end, parsed, { fridgeW: o.fridge ? fridgeW : 0, fridgeAtStart: !!o.fridgeStart, nearGap: nearGap, refP: refSides, hoodCentre: hoodAnchor, template: o.template || "fillFirst", cooktop: r.cooking === "Cooktop" });
           leg.baseSegs = pre.concat(placed.segs); leg.rangeSeg = placed.rangeSeg; leg.fridgeSeg = placed.fridgeSeg;
           leg.dwSeg = pre.length ? pre[0] : null;
           leg.upperSegs = placeUppers(o.uOff != null ? o.uOff : o.off, end, pl.wall, { fixedRange: placed.rangeSeg, fixedFridge: placed.fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab, cornerStartSku: o.uCornerStart || null });
@@ -2373,6 +2501,12 @@
            reusing the standard placement engines per combination. */
         function paintLegRoles(leg, pl, o) {
           var parsed = parseBase(pl.base, ct);
+          /* Dishwasher width on THIS leg: the DW paints beside the
+             sink only when its effective wall (dwPickEff, resolved by
+             the caller into o.dwW) is this leg; when the DW was picked
+             to this leg but the sink lives elsewhere, o.dwAtStart puts
+             it immediately after the corner cabinet instead. */
+          var dwWL = o.dwW != null ? o.dwW : dwW;
           function winIntFor(sinkSeg) {
             if (!winOn || !o.winHere) return null;
             var c = sinkSeg ? sinkSeg.s + sinkSeg.w / 2 : leg.len / 2;
@@ -2383,7 +2517,7 @@
           if (o.sink && o.range) {
             var csW = o.cornerStartSku ? skuW(o.cornerStartSku) : 0;
             var ceW = o.cornerEndSku ? skuW(o.cornerEndSku) : 0;
-            var placed = placeStraightRun(Math.max(0, leg.len - csW - ceW), parsed, { fridgeW: o.fridgePos ? fridgeW : 0, nearGap: nearGap, refP: refSides, dwW: dwW, sinkCentre: sinkAnchor != null ? sinkAnchor - csW : null, hoodCentre: hoodAnchor != null ? hoodAnchor - csW : null });
+            var placed = placeStraightRun(Math.max(0, leg.len - csW - ceW), parsed, { fridgeW: o.fridgePos ? fridgeW : 0, nearGap: nearGap, refP: refSides, dwW: dwWL, sinkCentre: sinkAnchor != null ? sinkAnchor - csW : null, hoodCentre: hoodAnchor != null ? hoodAnchor - csW : null });
             var segs = [];
             if (o.cornerStartSku) segs.push({ kind: "corner", sku: o.cornerStartSku, s: 0, w: csW });
             placed.segs.forEach(function (sg) { segs.push(shifted(sg, csW)); });
@@ -2395,7 +2529,7 @@
             leg.upperSegs = placeUppers(0, leg.len, pl.wall, { cornerStartSku: o.uCornerStart || null, cornerEndSku: o.uCornerEnd || null, windowInt: leg.winInt, fixedRange: leg.rangeSeg, fixedFridge: leg.fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab });
           } else if (o.sink && o.off) {
             var zeS = leg.len - (o.cornerEndSku ? skuW(o.cornerEndSku) : 0);
-            var placedS = placeSinkRun(o.off, zeS, parsed, { cornerStartSku: null, cornerEndSku: o.cornerEndSku || null, dwW: dwW, sinkCentre: sinkAnchor, split: o.split || "all" });
+            var placedS = placeSinkRun(o.off, zeS, parsed, { cornerStartSku: null, cornerEndSku: o.cornerEndSku || null, dwW: dwWL, sinkCentre: sinkAnchor, split: o.split || "all" });
             var segsS = placedS.segs.slice();
             leg.fridgeSeg = null;
             if (o.fridgePos) {
@@ -2411,17 +2545,25 @@
             leg.winInt = winIntFor(leg.sinkSeg);
             leg.upperSegs = placeUppers(o.uOff || 0, leg.len, pl.wall, { cornerStartSku: o.uCornerStart || null, cornerEndSku: o.uCornerEnd || null, windowInt: leg.winInt, fixedFridge: leg.fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab });
           } else if (o.sink) {
-            doSinkLeg(leg, pl, { cornerStartSku: o.cornerStartSku || null, cornerEndSku: o.cornerEndSku || null, uCornerStart: o.uCornerStart || null, uCornerEnd: o.uCornerEnd || null, dwW: dwW, split: o.split || "all", fridgeStart: o.fridgePos === "start", fridgeEnd: o.fridgePos === "end", winHere: !!o.winHere, ze: o.ze != null ? o.ze : null, uZe: o.uZe != null ? o.uZe : null });
+            doSinkLeg(leg, pl, { cornerStartSku: o.cornerStartSku || null, cornerEndSku: o.cornerEndSku || null, uCornerStart: o.uCornerStart || null, uCornerEnd: o.uCornerEnd || null, dwW: dwWL, split: o.split || "all", fridgeStart: o.fridgePos === "start", fridgeEnd: o.fridgePos === "end", winHere: !!o.winHere, ze: o.ze != null ? o.ze : null, uZe: o.uZe != null ? o.uZe : null });
           } else if (o.range) {
-            doRangeLeg(leg, pl, { off: o.off || 0, end: leg.len, fridge: !!o.fridgePos, template: "fillFirst", uOff: o.uOff || 0, uCornerStart: o.uCornerStart || null });
+            doRangeLeg(leg, pl, { off: o.off || 0, end: leg.len, fridge: !!o.fridgePos, fridgeStart: o.fridgePos === "start", template: "fillFirst", uOff: o.uOff || 0, uCornerStart: o.uCornerStart || null, dwAtStart: o.dwAtStart || 0 });
             if (winOn && o.winHere) {
               leg.winInt = winIntFor(null);
               leg.upperSegs = placeUppers(o.uOff || 0, leg.len, pl.wall, { fixedRange: leg.rangeSeg, fixedFridge: leg.fridgeSeg, fixedFridgeSku: parseWall(pl.wall).fridgeCab, cornerStartSku: o.uCornerStart || null, windowInt: leg.winInt });
             }
           } else {
             var zs2 = o.off || 0, ze2 = leg.len - (o.cornerEndSku ? skuW(o.cornerEndSku) : 0);
-            var placed2 = placeFillRun(zs2, ze2, parsed, { fridgeW: o.fridgePos ? fridgeW : 0, nearGap: nearGap, refP: refSides });
+            /* A dishwasher picked to this leg (sink elsewhere) sits
+               immediately after the corner: the fills compose after
+               its 24in slot at the leg's start (past the corner
+               footprint offset o.off). The fridge anchors at the
+               leg's outer end — the start slot when the caller marks
+               it "start" (a horizontal top leg), the end otherwise. */
+            var dwS2 = o.dwAtStart || 0;
+            var placed2 = placeFillRun(zs2 + dwS2, ze2, parsed, { fridgeW: o.fridgePos ? fridgeW : 0, fridgeAtStart: o.fridgePos === "start", nearGap: nearGap, refP: refSides });
             var segs2 = placed2.segs.slice();
+            if (dwS2) { var dwSeg2 = { kind: "dw", sku: "DW", s: zs2, w: dwS2 }; segs2.push(dwSeg2); leg.dwSeg = dwSeg2; }
             if (o.cornerStartSku) segs2.push({ kind: "corner", sku: o.cornerStartSku, s: 0, w: skuW(o.cornerStartSku) });
             if (o.cornerEndSku) segs2.push({ kind: "corner", sku: o.cornerEndSku, s: leg.len - skuW(o.cornerEndSku), w: skuW(o.cornerEndSku) });
             leg.baseSegs = segs2; leg.fridgeSeg = placed2.fridgeSeg;
@@ -2493,8 +2635,9 @@
             doRangeLeg(legB, plB, { off: offB, end: lenB, fridge: fridgeMovedB2, template: "fillFirst", uOff: uOffB, dwAtStart: plB.dwWrap ? dwW : 0, uCornerStart: upperFlip ? ucSku : null });
           } else {
             var pkP = state.picks;
-            paintLegRoles(legA, plA, { sink: pkP.sink === "A", range: pkP.stove === "A", fridgePos: fridgePickEff() === "A" ? "start" : null, cornerEndSku: baseFlip ? null : bcSku, uCornerEnd: upperFlip ? null : ucSku, winHere: pkP.window === "A", split: "all", ze: baseFlip ? lenA - baseCornerOff(bcSku) : null, uZe: upperFlip ? lenA - upperCornerOff(ucSku) : null });
-            paintLegRoles(legB, plB, { sink: pkP.sink === "B", range: pkP.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, off: offB, uOff: uOffB, winHere: pkP.window === "B" });
+            var dwKP = dwPickEff();
+            paintLegRoles(legA, plA, { sink: pkP.sink === "A", range: pkP.stove === "A", fridgePos: fridgePickEff() === "A" ? "start" : null, cornerEndSku: baseFlip ? null : bcSku, uCornerEnd: upperFlip ? null : ucSku, winHere: pkP.window === "A", split: "all", ze: baseFlip ? lenA - baseCornerOff(bcSku) : null, uZe: upperFlip ? lenA - upperCornerOff(ucSku) : null, dwW: dwKP === "A" ? dwW : 0, dwAtStart: dwKP === "A" && pkP.sink !== "A" ? dwW : 0 });
+            paintLegRoles(legB, plB, { sink: pkP.sink === "B", range: pkP.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, off: offB, uOff: uOffB, winHere: pkP.window === "B", dwW: dwKP === "B" ? dwW : 0, dwAtStart: dwKP === "B" && pkP.sink !== "B" ? dwW : 0 });
           }
           if (baseFlip && bcSku) legB.baseSegs = [{ kind: "corner", sku: bcSku, s: 0, w: skuW(bcSku) }].concat(legB.baseSegs);
           var pantryOnA = pantryPickEff() === "A";
@@ -2535,8 +2678,9 @@
             doRangeLeg(legGB, plGB, { off: 0, fridge: fridgeMovedG2, template: "rangeFirst", uOff: 0 });
           } else {
             var pkG = state.picks;
-            paintLegRoles(legGA, plGA, { sink: pkG.sink === "A", range: pkG.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, winHere: pkG.window === "A", split: "half" });
-            paintLegRoles(legGB, plGB, { sink: pkG.sink === "B", range: pkG.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, winHere: pkG.window === "B", split: "all" });
+            var dwKG = dwPickEff();
+            paintLegRoles(legGA, plGA, { sink: pkG.sink === "A", range: pkG.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, winHere: pkG.window === "A", split: "half", dwW: dwKG === "A" ? dwW : 0, dwAtStart: dwKG === "A" && pkG.sink !== "A" ? dwW : 0 });
+            paintLegRoles(legGB, plGB, { sink: pkG.sink === "B", range: pkG.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, winHere: pkG.window === "B", split: "all", dwW: dwKG === "B" ? dwW : 0, dwAtStart: dwKG === "B" && pkG.sink !== "B" ? dwW : 0 });
           }
           var pantryOnB = pantryPickEff() === "B";
           wallH(pantryOnB ? -6 : -tallTotal - 6, lenGA + 6, 0);
@@ -2572,9 +2716,10 @@
             doRangeLeg(legUC, plUC, { off: offU, end: lenUC, fridge: false, template: "fillFirst", uOff: uOffU });
           } else {
             var pkU2 = state.picks;
-            paintLegRoles(legUB, plUB, { sink: pkU2.sink === "B", range: pkU2.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, cornerStartSku: bcU, cornerEndSku: bcU, uCornerStart: ucU, uCornerEnd: ucU, winHere: pkU2.window === "B", split: "centre" });
-            paintLegRoles(legUA, plUA, { sink: pkU2.sink === "A", range: pkU2.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "A" });
-            paintLegRoles(legUC, plUC, { sink: pkU2.sink === "C", range: pkU2.stove === "C", fridgePos: fridgePickEff() === "C" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "C" });
+            var dwKU = dwPickEff();
+            paintLegRoles(legUB, plUB, { sink: pkU2.sink === "B", range: pkU2.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, cornerStartSku: bcU, cornerEndSku: bcU, uCornerStart: ucU, uCornerEnd: ucU, winHere: pkU2.window === "B", split: "centre", dwW: dwKU === "B" ? dwW : 0, dwAtStart: dwKU === "B" && pkU2.sink !== "B" ? dwW : 0 });
+            paintLegRoles(legUA, plUA, { sink: pkU2.sink === "A", range: pkU2.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "A", dwW: dwKU === "A" ? dwW : 0, dwAtStart: dwKU === "A" && pkU2.sink !== "A" ? dwW : 0 });
+            paintLegRoles(legUC, plUC, { sink: pkU2.sink === "C", range: pkU2.stove === "C", fridgePos: fridgePickEff() === "C" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "C", dwW: dwKU === "C" ? dwW : 0, dwAtStart: dwKU === "C" && pkU2.sink !== "C" ? dwW : 0 });
           }
           var pantryOnAU = pantryPickEff() === "A";
           var tallC = 0, tallA = 0;
@@ -2637,6 +2782,9 @@
             if (sinkOnIsl && stoveOnIsl) placedI = placeStraightRun(islLen, parsedI, { fridgeW: 0, nearGap: false, dwW: dwW, sinkCentre: null, hoodCentre: null });
             else if (sinkOnIsl) placedI = placeSinkRun(0, islLen, parsedI, { cornerStartSku: null, cornerEndSku: null, dwW: dwW, sinkCentre: null, split: "centre" });
             else placedI = placeRangeRun(0, islLen, parsedI, { fridgeW: 0, nearGap: false, refP: 0, hoodCentre: null, template: "fillFirst", cooktop: r.cooking === "Cooktop" });
+            /* Sink–stove HARD rule on the island run too: separate
+               them with a cabinet, or the layout reads too tight. */
+            if (!separateSinkStoveSegs(placedI.segs)) suppress = true;
             placedI.segs.forEach(function (seg) { paintSeg(legI, seg, 24, false); });
             if (placedI.sinkSeg) { legI.sinkSeg = placedI.sinkSeg; sinkLeg = legI; }
             if (placedI.rangeSeg) { legI.rangeSeg = placedI.rangeSeg; rangeLeg = legI; }
@@ -2657,6 +2805,27 @@
         Object.keys(legs).forEach(function (k) {
           var leg = legs[k];
           leg.baseSegs = closeGaps(flexFillers(leg.baseSegs || [], "cab", r.wallH), leg.off || 0, leg.closeEnd != null ? leg.closeEnd : leg.len, null, "cab", r.wallH);
+          /* Sink–stove HARD rule: if this leg composed the range flush
+             against the sink cluster and no cabinet on the leg can be
+             moved between them, the layout cannot be drawn — too tight. */
+          if (!separateSinkStoveSegs(leg.baseSegs)) suppress = true;
+          /* Some painters store SHIFTED COPIES as the leg's sink/range
+             pointers (paintLegRoles' combined branch) — re-sync their
+             positions from the composed segments so markers and the
+             window still track the sink after a separation move. */
+          (leg.baseSegs || []).forEach(function (sg2) {
+            if (sg2.kind === "sink" && leg.sinkSeg) leg.sinkSeg.s = sg2.s;
+            if ((sg2.kind === "range" || sg2.kind === "ct") && leg.rangeSeg) leg.rangeSeg.s = sg2.s;
+            if (sg2.kind === "dw" && leg.dwSeg) leg.dwSeg.s = sg2.s;
+          });
+          /* If the separation moved the sink, re-centre the window on
+             it before the uppers are gap-closed against the window
+             span (an upper left over the moved window is caught by
+             the window-overlap scan below and reads too tight). */
+          if (leg.winInt && leg.sinkSeg) {
+            var nws = leg.sinkSeg.s + leg.sinkSeg.w / 2 - leg.winInt.w / 2;
+            leg.winInt.s = Math.max(0, Math.min(nws, Math.max(0, leg.len - leg.winInt.w)));
+          }
           leg.upperSegs = closeGaps(flexFillers(leg.upperSegs || [], "u", r.wallH), null, leg.uCloseEnd != null ? leg.uCloseEnd : leg.len, leg.winInt || null, "u", r.wallH);
         });
         if (!suppress) {
@@ -3301,8 +3470,15 @@
                 fridgeKeyG = oKeyG; btcFridgeKey = oKeyG; effFridgeKeyNow = oKeyG;
               }
             }
+            /* Dishwasher wall for this design: the sink's wall by
+               default (DW beside the sink), or the wall the user
+               picked in the placement panel — then the DW's 24in is
+               reserved on THAT leg and it composes immediately after
+               the corner cabinet there. */
+            var dwKeyG = dwPickEff();
             function legBaseG(key, lenIn) {
               var sinkHere = pk.sink === key, stoveHere = pk.stove === key, fridgeHere = fridgeKeyG === key;
+              var dwHere = dwKeyG === key && state.dish === "Yes";
               var cornerSkus = (isLG && ((key === "A" && !flipG) || (key === "B" && flipG))) ? [cbSkuG] : [];
               var totalIn = lenIn - ((isLG && key === "B" && !flipG) ? cbOwedG : (isLG && key === "A" && flipG) ? cbOwedG : 0);
               var list;
@@ -3311,13 +3487,13 @@
                    cluster (corner + fridge as finally placed + sink +
                    DW + stove zone if shared) leaves 18in of fill. */
                 var cwS = 0; cornerSkus.forEach(function (s) { cwS += skuW(s); });
-                var restS = totalIn - (fridgeHere ? frInG : 0) - dwInG - (stoveHere ? 30 : 0) - cwS - 30;
+                var restS = totalIn - (fridgeHere ? frInG : 0) - (dwHere ? dwInG : 0) - (stoveHere ? 30 : 0) - cwS - 30;
                 var btcG = (btcOn && restS >= 18) ? 18 : 0;
                 if (btcG) btcComposed = true;
-                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInG : 0, dwIn: dwInG, stoveIn: stoveHere ? 30 : 0, btcIn: btcG });
+                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInG : 0, dwIn: dwHere ? dwInG : 0, stoveIn: stoveHere ? 30 : 0, btcIn: btcG });
               } else {
                 var cw = 0; cornerSkus.forEach(function (s) { cw += skuW(s); });
-                list = fillForIn(totalIn - (fridgeHere ? frInG : 0) - (stoveHere ? 30 : 0) - cw).concat(cornerSkus);
+                list = fillForIn(totalIn - (fridgeHere ? frInG : 0) - (stoveHere ? 30 : 0) - (dwHere ? dwInG : 0) - cw).concat(cornerSkus);
                 if (stoveHere && cooktop) list = withCT(list);
               }
               return list;
@@ -3335,9 +3511,15 @@
             }
             bA2 = legBaseG("A", lenAinG); bB2 = legBaseG("B", lenBinG);
             wA2 = legWallG("A", lenAinG); wB2 = legWallG("B", lenBinG);
-            effA2 = clampU(Math.round(bA2.reduce(function (a, s) { return a + skuW(s); }, 0) / 3) + (pk.sink === "A" ? dwUnits : 0));
-            effB2 = clampU(Math.round(bB2.reduce(function (a, s) { return a + skuW(s); }, 0) / 3) + (pk.sink === "B" ? dwUnits : 0));
-            if (state.dish === "Yes") { if (pk.sink === "A") dispA2 = withDWText(bA2); else if (pk.sink === "B") dispB2 = withDWText(bB2); }
+            effA2 = clampU(Math.round(bA2.reduce(function (a, s) { return a + skuW(s); }, 0) / 3) + (dwKeyG === "A" ? dwUnits : 0));
+            effB2 = clampU(Math.round(bB2.reduce(function (a, s) { return a + skuW(s); }, 0) / 3) + (dwKeyG === "B" ? dwUnits : 0));
+            if (state.dish === "Yes") {
+              /* DW text follows its wall: beside the sink when it
+                 shares the sink's leg, after the corner cabinet when
+                 it was picked to the adjoining leg. */
+              if (dwKeyG === "A") dispA2 = pk.sink === "A" ? withDWText(bA2) : dwTextAfterCorner(bA2);
+              else if (dwKeyG === "B") dispB2 = pk.sink === "B" ? withDWText(bB2) : dwTextAfterCorner(bB2);
+            }
             /* L+Island with the sink and/or stove picked onto the
                island: the island run composes around them, exactly as
                on the Island kitchen type — the sink base is composed
@@ -3567,20 +3749,22 @@
                 }
               }
             }
+            var dwKeyU = dwPickEff();
             function legBaseU(key, lenIn) {
               var sinkHere = pkU.sink === key, stoveHere = pkU.stove === key, fridgeHere = fridgeKeyU === key;
+              var dwHere = dwKeyU === key && state.dish === "Yes";
               var cornerSkus = key === "B" ? [cbSkuU, cbSkuU] : [];
               var totalIn = lenIn - (key === "B" ? 0 : baseFootU);
               var list;
               if (sinkHere) {
                 var cwSU = 0; cornerSkus.forEach(function (s) { cwSU += skuW(s); });
-                var restSU = totalIn - (fridgeHere ? frInU : 0) - dwInU - (stoveHere ? 30 : 0) - cwSU - 30;
+                var restSU = totalIn - (fridgeHere ? frInU : 0) - (dwHere ? dwInU : 0) - (stoveHere ? 30 : 0) - cwSU - 30;
                 var btcU = (btcOn && restSU >= 18) ? 18 : 0;
                 if (btcU) btcComposed = true;
-                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInU : 0, dwIn: dwInU, stoveIn: stoveHere ? 30 : 0, btcIn: btcU });
+                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInU : 0, dwIn: dwHere ? dwInU : 0, stoveIn: stoveHere ? 30 : 0, btcIn: btcU });
               } else {
                 var cw = 0; cornerSkus.forEach(function (s) { cw += skuW(s); });
-                list = fillForIn(totalIn - (fridgeHere ? frInU : 0) - (stoveHere ? 30 : 0) - cw).concat(cornerSkus);
+                list = fillForIn(totalIn - (fridgeHere ? frInU : 0) - (stoveHere ? 30 : 0) - (dwHere ? dwInU : 0) - cw).concat(cornerSkus);
                 if (stoveHere && cooktop) list = withCT(list);
               }
               return list;
@@ -3637,7 +3821,7 @@
           baseL = legAft + legBft + legCft; wallL = baseL;
           denomFt = baseL + tallL;
           planLegs = [{ key: "A", base: bA3, wall: wA3, ft: legAft }, { key: "B", base: bB3, wall: wB3, ft: legBft }, { key: "C", base: bC3, wall: wC3, ft: legCft }];
-          baseDesignStr = legDesignStr([["A", state.dish === "Yes" && genericU && state.picks.sink === "A" ? withDWText(bA3) : bA3], ["B", state.dish === "Yes" && (!genericU || state.picks.sink === "B") ? withDWText(bB3) : bB3], ["C", state.dish === "Yes" && genericU && state.picks.sink === "C" ? withDWText(bC3) : bC3]]);
+          baseDesignStr = legDesignStr([["A", state.dish === "Yes" && genericU && dwPickEff() === "A" ? (state.picks.sink === "A" ? withDWText(bA3) : dwTextAfterCorner(bA3)) : bA3], ["B", state.dish === "Yes" && (!genericU || dwPickEff() === "B") ? (state.picks.sink === "B" ? withDWText(bB3) : dwTextAfterCorner(bB3)) : bB3], ["C", state.dish === "Yes" && genericU && dwPickEff() === "C" ? (state.picks.sink === "C" ? withDWText(bC3) : dwTextAfterCorner(bC3)) : bC3]]);
           wallDesignStr = legDesignStr([["A", wA3], ["B", wB3], ["C", wC3]]);
         }
         if (islandOn) {
@@ -3817,7 +4001,11 @@
               if (dwWrapToB && pl.key === "B") l = dwTextAfterCorner(l);
               /* When the DW wrapped to leg B, the sink leg must NOT also
                  gain a DW in the text — it sits on B only. */
-              else if (!dwWrapToB && pl.key === state.picks.sink) l = withDWText(l);
+              else if (!dwWrapToB && pl.key === state.picks.sink && arrangementIsDefault()) l = withDWText(l);
+              /* Picked layouts: the DW text follows its effective wall
+                 — beside the sink on the sink's leg, after the corner
+                 cabinet on the leg it was picked to. */
+              else if (!dwWrapToB && !arrangementIsDefault() && pl.key === dwPickEff()) l = pl.key === state.picks.sink ? withDWText(l) : dwTextAfterCorner(l);
             }
             return [pl.key, l];
           });
@@ -4042,10 +4230,17 @@
               /* The sink leg is also charged the BTC18 (it is part of
                  the sink cluster), and the fridge is charged to the
                  leg it was finally composed on — which differs from
-                 the pick when the BTC rule relocated it. */
-              if (pkT.sink === key) need += 30 + dwW2 + (btcOn ? 18 : 0);
-              if ((btcFridgeKey || pkT.fridge) === key) need += fridgeW2 + gap2;
+                 the pick when the BTC rule relocated it. The DW is
+                 charged to its effective wall (dwPickEff): the sink's
+                 wall by default, the picked wall when the user moved
+                 it — never double-charged to both. */
+              if (pkT.sink === key) need += 30 + (btcOn ? 18 : 0);
+              if (dwPickEff() === key) need += dwW2;
+              if ((btcFridgeKey || winAppliedFridge || pkT.fridge) === key) need += fridgeW2 + gap2;
               if (pkT.stove === key) need += 30;
+              /* Sink–stove HARD rule: sharing a leg also costs at
+                 least one separating cabinet (12in) between them. */
+              if (pkT.sink === key && pkT.stove === key) need += 12;
               return need;
             }
             if (ktype === "L-Shape" || ktype === "L+Island") {
@@ -4063,6 +4258,7 @@
                 var needIslL = 0;
                 if (pkT.sink === "Island") needIslL += 30 + dwW2 + (btcOn ? 18 : 0);
                 if (pkT.stove === "Island") needIslL += 30;
+                if (pkT.sink === "Island" && pkT.stove === "Island") needIslL += 12;
                 if (over(needIslL, islandFt * 12)) tooTight = true;
               }
             } else if (ktype === "Galley") {
@@ -4080,6 +4276,7 @@
               var needIsl = 0;
               if (pkT.sink === "Island") needIsl += 30 + dwW2 + (btcOn ? 18 : 0);
               if (pkT.stove === "Island") needIsl += 30;
+              if (pkT.sink === "Island" && pkT.stove === "Island") needIsl += 12;
               if (over(needIsl, islandFt * 12)) tooTight = true;
             }
             if (state.window === "Yes") {
