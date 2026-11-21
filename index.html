@@ -1024,19 +1024,6 @@
         <div class="panel-row" id="row-islhead">
           <p class="field-label" style="margin: 4px 0 0;">Island panels <span class="hint">— side and back panels for the island</span></p>
         </div>
-        <div class="panel-row" id="row-ibep24">
-          <div class="panel-head">
-            <span class="field-label" id="lbl-ibep24">BEP24 — Island Side Panel — 24&Prime;</span>
-          </div>
-          <div class="panel-qty" id="qty-ibep24">
-            <span class="field-label" id="lbl-ibep24q">Quantity — BEP24 island side panel</span>
-            <div class="stepper small">
-              <button type="button" data-step="-1" data-target="in-ibep24" data-int="1" aria-label="Decrease ibep24 quantity">−</button>
-              <input type="number" id="in-ibep24" placeholder="0" min="0" step="1" inputmode="numeric" aria-labelledby="lbl-ibep24q" />
-              <button type="button" data-step="1" data-target="in-ibep24" data-int="1" aria-label="Increase ibep24 quantity">+</button>
-            </div>
-          </div>
-        </div>
         <div class="panel-row" id="row-bep26">
           <div class="panel-head">
             <span class="field-label" id="lbl-bep26">BEP26 — Island Side Panel — 26&Prime;</span>
@@ -1076,22 +1063,9 @@
             </div>
           </div>
         </div>
-        <div class="panel-row" id="row-iref24">
-          <div class="panel-head">
-            <span class="field-label" id="lbl-iref24">REF2496 — Island Back Panel — 24&Prime; W x 96&Prime; H</span>
-          </div>
-          <div class="panel-qty" id="qty-iref24">
-            <span class="field-label" id="lbl-iref24q">Quantity — REF2496 island back panel</span>
-            <div class="stepper small">
-              <button type="button" data-step="-1" data-target="in-iref24" data-int="1" aria-label="Decrease iref24 quantity">−</button>
-              <input type="number" id="in-iref24" placeholder="0" min="0" step="1" inputmode="numeric" aria-labelledby="lbl-iref24q" />
-              <button type="button" data-step="1" data-target="in-iref24" data-int="1" aria-label="Increase iref24 quantity">+</button>
-            </div>
-          </div>
-        </div>
         <div class="panel-row" id="row-ref36">
           <div class="panel-head">
-            <span class="field-label" id="lbl-ref36">REF3696 — Refrigerator End Panel — 36&Prime; W x 96&Prime; H (island back)</span>
+            <span class="field-label" id="lbl-ref36">REF3696 — Island Back Panel — 36&Prime; W x 96&Prime; H</span>
           </div>
           <div class="panel-qty" id="qty-ref36">
             <span class="field-label" id="lbl-ref36q">Quantity — REF3696 island back panel</span>
@@ -1145,6 +1119,7 @@
             <p class="seg-note" id="place-panel-note" hidden></p>
           </div>
           <p class="place-hint" id="place-hint" aria-live="polite"></p>
+          <p class="site-notes" id="win-obstruct" role="alert" hidden></p>
         </div>
       </section>
 
@@ -1262,6 +1237,24 @@
          Null = the fridge stays on its picked / default leg. */
       var effFridgeKeyNow = null;
       function fridgePickEff() { return effFridgeKeyNow || (state.picks ? state.picks.fridge : null); }
+      /* Window-clear rule: the window must ALWAYS be clear — no fridge
+         and no tall/pantry run may sit in front of the window span
+         (window width + 1.5in clearance each side, on the window's
+         wall). When a composed design would put the fridge in the
+         window span, calc() records a pending relocation here (keyed
+         by the design signature, so it applies only to the exact
+         inputs that caused it), schedules one recalculation, and the
+         next pass composes the fridge onto another leg — the same
+         relocation mechanism as the BTC18 sink-cluster rule. The
+         pantry has no composition of its own (talls are priced per
+         leg independently), so its relocation is a painter-level
+         effective pick, exactly like effFridgeKeyNow. The obstruction
+         is never silently accepted: winPending also drives the
+         visible "obstructing the window" notice. */
+      var effPantryKeyNow = null;
+      function pantryPickEff() { return effPantryKeyNow || (state.picks ? state.picks.pantry : null); }
+      var winPending = null;
+      var winRecalcScheduled = false;
       function paintedUppers() {
         if (state.line !== "Regular") return false;
         var up = state.uppers ? effColour(state.line, state.uppers) : effColour(state.line, state.lowers);
@@ -1778,7 +1771,7 @@
         var islT = state.ktype === "Island" || state.ktype === "L+Island";
         var islHead = $("row-islhead");
         if (islHead) islHead.style.display = islT ? "" : "none";
-        ["ibep24", "bep26", "bep36", "bep48", "iref24", "ref36"].forEach(function (k) {
+        ["bep26", "bep36", "bep48", "ref36"].forEach(function (k) {
           var row = $("row-" + k);
           if (row) row.style.display = islT ? "" : "none";
         });
@@ -2504,7 +2497,7 @@
             paintLegRoles(legB, plB, { sink: pkP.sink === "B", range: pkP.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, off: offB, uOff: uOffB, winHere: pkP.window === "B" });
           }
           if (baseFlip && bcSku) legB.baseSegs = [{ kind: "corner", sku: bcSku, s: 0, w: skuW(bcSku) }].concat(legB.baseSegs);
-          var pantryOnA = !!(state.picks && state.picks.pantry === "A");
+          var pantryOnA = pantryPickEff() === "A";
           wallH(pantryOnA ? -tallTotal - 6 : -6, lenA + 3, 0);
           wallV(lenA + 3, 0, 3 + lenB + (pantryOnA ? 0 : tallTotal) + 6);
           if (bcSku && bcSku.indexOf("BBC") === 0 && !baseFlip) paintClearance(legB, 24, 2, 24, true);
@@ -2545,7 +2538,7 @@
             paintLegRoles(legGA, plGA, { sink: pkG.sink === "A", range: pkG.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, winHere: pkG.window === "A", split: "half" });
             paintLegRoles(legGB, plGB, { sink: pkG.sink === "B", range: pkG.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, winHere: pkG.window === "B", split: "all" });
           }
-          var pantryOnB = !!(state.picks && state.picks.pantry === "B");
+          var pantryOnB = pantryPickEff() === "B";
           wallH(pantryOnB ? -6 : -tallTotal - 6, lenGA + 6, 0);
           wallH(pantryOnB ? -tallTotal - 6 : -6, lenGB + 6, 96);
           if (pantryOnB) {
@@ -2583,7 +2576,7 @@
             paintLegRoles(legUA, plUA, { sink: pkU2.sink === "A", range: pkU2.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "A" });
             paintLegRoles(legUC, plUC, { sink: pkU2.sink === "C", range: pkU2.stove === "C", fridgePos: fridgePickEff() === "C" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "C" });
           }
-          var pantryOnAU = !!(state.picks && state.picks.pantry === "A");
+          var pantryOnAU = pantryPickEff() === "A";
           var tallC = 0, tallA = 0;
           if (pantryOnAU) {
             tallList.forEach(function (sk) { var w = skuW(sk); paintSeg(legUA, { kind: /^(PC|HPC)/.test(sk) ? "tall" : "cab", sku: sk, s: lenUA + tallA, w: w }, 24, false); tallA += w; });
@@ -2955,6 +2948,19 @@
       var lastResult = null;
 
       function calc() {
+        /* Window-clear pending relocation (see winPending): applied
+           only when the design signature still matches the inputs
+           that produced the obstruction; any input change clears it
+           and the new design is judged fresh. */
+        var winSigNow = designSig();
+        var winAppliedFridge = null, winAppliedPantry = null;
+        if (winPending && winPending.sig === winSigNow) {
+          winAppliedFridge = winPending.fridgeTo || null;
+          winAppliedPantry = winPending.pantryTo || null;
+        } else if (winPending) { winPending = null; }
+        var winMsgFridge = !!winAppliedFridge, winMsgPantry = !!winAppliedPantry;
+        var winForceTooTight = false;
+        effPantryKeyNow = winAppliedPantry;
         var line = state.line;
         var box = (line === "GOLA") ? "PB" : state.box;
         var lowers = effColour(line, state.lowers);
@@ -3162,7 +3168,7 @@
            BTC-driven relocation). */
         var btcOn = state.accMaster === "Yes" && state.btc === "Yes";
         var btcComposed = false, btcNoFit = false, btcFridgeOnB = false, btcFridgeKey = null;
-        effFridgeKeyNow = null;
+        effFridgeKeyNow = winAppliedFridge;
 
         var baseList = [], wallList = [];
         var tallList = designList(line, "tall" + tallH, unitsFor(tallL));
@@ -3282,7 +3288,7 @@
                cluster without it, and the other leg can take the
                fridge — the fridge moves to the other leg. Only the
                fridge moves; the BTC18 never leaves the sink leg. */
-            var fridgeKeyG = pk.fridge;
+            var fridgeKeyG = winAppliedFridge || pk.fridge;
             if (btcOn && pk.fridge === pk.sink && (pk.sink === "A" || pk.sink === "B")) {
               var oKeyG = pk.sink === "A" ? "B" : "A";
               var sLenG = pk.sink === "A" ? lenAinG : lenBinG;
@@ -3361,13 +3367,26 @@
               }
             }
           } else if (ktype === "Galley") {
-            /* Fridge at the end of run A (with the sink run); range alone on run B */
+            /* Fridge at the end of run A (with the sink run); range alone on run B.
+               Window-clear relocation: when the fridge on A would sit in
+               front of the window span, it moves to the end of run B
+               instead (btcFridgeOnB tells the painter where it went). */
+            if (winAppliedFridge === "B" && legBft > 0) {
+              bA2 = legList("base", Au - dwUnits);
+              if (!hasSink(bA2)) bA2 = composeSinkBase(legAft * 12, { cornerSkus: [], fridgeIn: 0, dwIn: dwUnits * 3, stoveIn: 0 });
+              bB2 = withCT(legList("baseFill", Bu - 10 - fridgeUnits));
+              wA2 = legList("wallFill" + wallH, Au - winUnits);
+              wB2 = legList("wallFill" + wallH, Bu); if (legBft > 0) { wB2.push("W3018"); wB2.push(fridgeCabSku2); }
+              btcFridgeOnB = true;
+              effA2 = clampU(Au - dwUnits); effB2 = clampU(Bu - 10 - fridgeUnits);
+            } else {
             bA2 = legList("base", Au - fridgeUnits - dwUnits);
             if (!hasSink(bA2)) bA2 = composeSinkBase(legAft * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 0 });
             bB2 = withCT(legList("baseFill", Bu - 10));
             wA2 = legList("wallFill" + wallH, Au - winUnits); if (legAft > 0) wA2.push(fridgeCabSku2);
             wB2 = legList("wallFill" + wallH, Bu); if (legBft > 0) wB2.push("W3018");
             effA2 = clampU(Au - fridgeUnits - dwUnits); effB2 = clampU(Bu - 10);
+            }
             if (state.dish === "Yes") dispA2 = withDWText(bA2);
           } else {
             /* L / L+Island — composed case by case from the actual leg
@@ -3426,12 +3445,37 @@
               btcCfg2 = evalBtc2(false, false) || evalBtc2(true, false) || evalBtc2(false, true) || evalBtc2(true, true);
               if (!btcCfg2) btcNoFit = true;
             }
-            if (btcCfg2) {
-              baseFlipL = btcCfg2.flip; dwWrapToB = false; btcFridgeOnB = btcCfg2.fridgeB;
+            /* Window-clear relocation, default L: the fridge at the
+               start of leg A can land in front of the window (the
+               window is centred on the sink, and on shorter sink runs
+               its span reaches the fridge zone). When the previous
+               pass found that obstruction, this pass composes the
+               fridge onto leg B through the same configuration shape
+               as the BTC relocation — leg A keeps sink + DW + corner,
+               leg B takes corner charge + stove + fridge. If neither
+               flip fits, the normal composition stands and the
+               window check below forces the too-tight state instead
+               of drawing the fridge over the window. */
+            var winCfg2 = null;
+            if (!btcCfg2 && winAppliedFridge === "B" && legAft > 0 && legBft > 0) {
+              var evalWin2 = function (flip) {
+                if (flip && !canFlip2) return null;
+                var cA = flip ? cbOnB2 : cbOnA2;
+                var cB = flip ? cbOnA2 : cbOnB2;
+                if (cA + 30 + dwIn2 > lenAin2 + 0.01) return null;
+                if (cB + 30 + fridgeIn2 > lenBin2 + 0.01) return null;
+                return { flip: flip, fridgeB: true };
+              };
+              winCfg2 = evalWin2(false) || evalWin2(true);
+            }
+            var cfg2 = btcCfg2 || winCfg2;
+            var cfgBtcIn = btcCfg2 ? 18 : 0;
+            if (cfg2) {
+              baseFlipL = cfg2.flip; dwWrapToB = false; btcFridgeOnB = cfg2.fridgeB;
               upperFlipL = baseFlipL && state.upperCorner === "WBC";
               var footA2 = baseFlipL ? cbOnB2 : 0, footB2 = baseFlipL ? cbOnA2 : cbOnB2;
-              bA2 = composeSinkBase(lenAin2 - footA2, { cornerSkus: baseFlipL ? [] : [cbSku2], fridgeIn: btcFridgeOnB ? 0 : fridgeIn2, dwIn: dwIn2, stoveIn: 0, btcIn: 18 });
-              btcComposed = true;
+              bA2 = composeSinkBase(lenAin2 - footA2, { cornerSkus: baseFlipL ? [] : [cbSku2], fridgeIn: btcFridgeOnB ? 0 : fridgeIn2, dwIn: dwIn2, stoveIn: 0, btcIn: cfgBtcIn });
+              if (cfgBtcIn) btcComposed = true;
               var bBfillIn2 = Math.floor((lenBin2 - footB2 - 30 - (btcFridgeOnB ? fridgeIn2 : 0)) / 3) * 3;
               bB2 = withCT(fillForIn(bBfillIn2));
               if (baseFlipL) bB2 = [cbSku2].concat(bB2);
@@ -3507,7 +3551,7 @@
                relocation as the L — if the fridge shares the sink's leg
                and blocks the cluster there, it moves to a free leg
                (never the stove's leg) that can hold it. */
-            var fridgeKeyU = pkU.fridge;
+            var fridgeKeyU = winAppliedFridge || pkU.fridge;
             if (btcOn && pkU.fridge === pkU.sink) {
               var sLenU = pkU.sink === "A" ? legAft * 12 : pkU.sink === "C" ? legCft * 12 : legBft * 12;
               var sChargeU = pkU.sink === "B" ? 2 * skuW(cbSkuU) : baseFootU;
@@ -3790,13 +3834,14 @@
            filler strip actually drawn is priced per piece. Every open
            end in the composed design earns a suggested finish panel:
            open base ends -> BEP24, open wall ends -> WEP, an open
-           fridge or pantry/tall side -> REF2496, island ends -> island
-           side panels and the island back -> REF2496, plus a WEP for
+           fridge or pantry/tall side -> REF2496, island ends -> BEP26
+           island side panels and the island back -> REF3696, plus a WEP for
            each upper flanking the window zone and the hood zone. An end
            is closed when it terminates at a corner cabinet, a wall
            (fridge door-swing gap), or a tall unit. */
         var fillBasePerLeg = {}, fillWallPerLeg = {}, fillBaseCount = 0, fillWallCount = 0;
-        var panelSugg = { ref: 0, bep: 0, wep: 0, ibep24: 0, iref24: 0 };
+        var panelSugg = { ref: 0, bep: 0, wep: 0, bep26: 0, ref36: 0 };
+        var winSceneFridgeLeg = null;
         var refSidesNow = (state.panelsMaster === "Yes") ? Math.min(qty("in-ref"), 2) : 0;
         (function () {
           var shim = { planLegs: planLegs, tallListRaw: tallList, islandListRaw: islandList, islandFt: islandFt, winW: winW, windowOn: state.window, wallH: wallH, fridgeW: parseInt(state.fridge, 10), ktype: ktype, line: line, dish: state.dish, cooking: state.cooking, tooTight: false, refSides: refSidesNow };
@@ -3804,8 +3849,19 @@
           try { sc = buildScene(shim); } catch (e) { sc = null; }
           if (!sc || sc.tooTight) return;
           var legsS = sc.plan.legs || {};
+          /* Window-clear check on the composed scene: a fridge segment
+             that intersects its leg's window span (window + 1.5in
+             clearance each side) is an obstruction — recorded here,
+             acted on below. */
+          Object.keys(legsS).forEach(function (k) {
+            var lg = legsS[k];
+            if (lg.winInt && lg.fridgeSeg) {
+              var fSg = lg.fridgeSeg, wSg = lg.winInt;
+              if (fSg.s < wSg.s + wSg.w - 0.25 && fSg.s + fSg.w > wSg.s + 0.25) winSceneFridgeLeg = k;
+            }
+          });
           var tallTot = 0; tallList.forEach(function (sk) { tallTot += skuW(sk); });
-          var pantryKey = (ktype === "Straight" || ktype === "Island") ? "Main" : state.picks.pantry;
+          var pantryKey = (ktype === "Straight" || ktype === "Island") ? "Main" : pantryPickEff();
           function tallEnd(key) {
             if (!tallTot || key !== pantryKey) return null;
             if (ktype === "U-Shape") return "end";
@@ -3856,7 +3912,59 @@
               });
             }
           });
-          if (islandOn && islandFt > 0) { panelSugg.ibep24 += 2; panelSugg.iref24 += 1; }
+          if (islandOn && islandFt > 0) { panelSugg.bep26 += 2; panelSugg.ref36 += 1; }
+        })();
+        /* ---- Window-clear enforcement ----
+           Fridge: if the composed scene puts the fridge in the window
+           span and no relocation is applied yet, record the pending
+           relocation (another leg with entered length, preferring a
+           leg that is not the window's wall) and recalculate once —
+           the next pass composes the fridge there. If the fridge was
+           already relocated and still lands in a window span, or no
+           other leg exists (single-wall kitchens), the design is
+           refused as too tight rather than drawn over the window.
+           Pantry/talls: a tall run picked onto the window's own wall
+           obstructs the window wall — the pantry is refused there and
+           relocated to another wall the pantry can take (its price is
+           unchanged; only its wall moves). Single-wall kitchens keep
+           their talls at the start of the run, outside the window
+           span, so they are exempt. */
+        (function () {
+          if (state.window !== "Yes") return;
+          var winLegNow = state.picks.window;
+          if (winSceneFridgeLeg) {
+            winMsgFridge = true;
+            if (winAppliedFridge) { winForceTooTight = true; return; }
+            var cand = null, candAlt = null;
+            planLegs.forEach(function (pl) {
+              if (!(pl.ft > 0) || pl.key === winSceneFridgeLeg || pl.key === "Island") return;
+              if (pl.key !== winLegNow && !cand) cand = pl.key;
+              else if (!candAlt) candAlt = pl.key;
+            });
+            cand = cand || candAlt;
+            if (cand) {
+              winPending = { sig: winSigNow, fridgeTo: cand, pantryTo: winAppliedPantry };
+              if (!winRecalcScheduled) {
+                winRecalcScheduled = true;
+                setTimeout(function () { winRecalcScheduled = false; calc(); }, 0);
+              }
+            } else winForceTooTight = true;
+          }
+          var tallTotW = 0; tallList.forEach(function (sk) { tallTotW += skuW(sk); });
+          if (tallTotW > 0 && ktype !== "Straight" && ktype !== "Island" && pantryPickEff() === winLegNow) {
+            winMsgPantry = true;
+            if (!winAppliedPantry) {
+              var pCand = null;
+              placeWallOffers("pantry").forEach(function (w) { if (!pCand && w !== winLegNow) pCand = w; });
+              if (pCand) {
+                winPending = { sig: winSigNow, fridgeTo: winAppliedFridge, pantryTo: pCand };
+                if (!winRecalcScheduled) {
+                  winRecalcScheduled = true;
+                  setTimeout(function () { winRecalcScheduled = false; calc(); }, 0);
+                }
+              }
+            }
+          }
         })();
         var baseFillSku = line === "GOLA" ? "WF328" : "WF330";
         var wallFillSku = "WF3" + wallH;
@@ -3875,8 +3983,8 @@
            itself changes (detected by comparing against the last
            applied suggestion under an unchanged design signature). */
         var designSigNow = designSig();
-        var MANAGED = ["ref", "bep", "wep", "ibep24", "iref24"];
-        var PINPUT = { ref: "in-ref", bep: "in-bep", wep: "in-wep", ibep24: "in-ibep24", iref24: "in-iref24" };
+        var MANAGED = ["ref", "bep", "wep", "bep26", "ref36"];
+        var PINPUT = { ref: "in-ref", bep: "in-bep", wep: "in-wep", bep26: "in-bep26", ref36: "in-ref36" };
         function effQty(k) { return (state.panelsMaster === "Yes") ? qty(PINPUT[k]) : 0; }
         if (lastSugg && lastSugg.sig === designSigNow) {
           MANAGED.forEach(function (k) { if (effQty(k) !== lastSugg[k]) panelManual[k] = designSigNow; });
@@ -3893,10 +4001,10 @@
         });
         refreshPanels();
         refSidesNow = (state.panelsMaster === "Yes") ? Math.min(qty("in-ref"), 2) : 0;
-        lastSugg = { sig: designSigNow, master: state.panelsMaster, ref: panelSugg.ref, bep: panelSugg.bep, wep: panelSugg.wep, ibep24: panelSugg.ibep24, iref24: panelSugg.iref24 };
+        lastSugg = { sig: designSigNow, master: state.panelsMaster, ref: panelSugg.ref, bep: panelSugg.bep, wep: panelSugg.wep, bep26: panelSugg.bep26, ref36: panelSugg.ref36 };
         var warnEl = $("panel-warn");
         if (warnEl) {
-          var PLBL = { ref: "REF2496", bep: "BEP24", wep: "WEP", ibep24: "BEP24 island side", iref24: "REF2496 island back" };
+          var PLBL = { ref: "REF2496", bep: "BEP24", wep: "WEP", bep26: "BEP26 island side", ref36: "REF3696 island back" };
           var short = [];
           if (state.panelsMaster === "Yes") MANAGED.forEach(function (k) { if (effQty(k) < panelSugg[k]) short.push(PLBL[k] + " \u00D7" + panelSugg[k]); });
           if (short.length) { warnEl.hidden = false; warnEl.innerHTML = "<b>Warning:</b> fewer finish panels than suggested for this design \u2014 suggested: " + short.join(", ") + ". Exposed cabinet sides will be left unfinished."; }
@@ -4023,6 +4131,10 @@
         /* The BTC18 could not be kept in the sink cluster in any
            allowed configuration — too tight, never stove-side. */
         if (btcNoFit) tooTight = true;
+        /* The fridge still lands in the window span after relocation
+           (or has nowhere to relocate to) — refuse the layout rather
+           than draw the fridge in front of the window. */
+        if (winForceTooTight) tooTight = true;
         var islandPriced = priceList(islandList, lowKey);
         var islandAmt = islandOn ? roundDollar(islandPriced.price) : 0;
 
@@ -4067,19 +4179,15 @@
         var refAmt = refQty * accLow.ref;
         var bepAmt = bepQty * accLow.bep;
         var wepAmt = wepQty * accUp["wep" + wallH];
-        var ibep24Qty = (masterOn && islandOn) ? qty("in-ibep24") : 0;
         var bep26Qty = (masterOn && islandOn) ? qty("in-bep26") : 0;
         var bep36Qty = (masterOn && islandOn) ? qty("in-bep36") : 0;
         var bep48Qty = (masterOn && islandOn) ? qty("in-bep48") : 0;
-        var iref24Qty = (masterOn && islandOn) ? qty("in-iref24") : 0;
         var ref36Qty = (masterOn && islandOn) ? qty("in-ref36") : 0;
-        var ibep24Amt = ibep24Qty * (accLow.bep || 0);
         var bep26Amt = bep26Qty * (accLow.bep26 || 0);
         var bep36Amt = bep36Qty * (accLow.bep36 || 0);
         var bep48Amt = bep48Qty * (accLow.bep48 || 0);
-        var iref24Amt = iref24Qty * (accLow.ref || 0);
         var ref36Amt = ref36Qty * (accLow.ref36 || 0);
-        var panelsAmt = refAmt + bepAmt + wepAmt + ibep24Amt + bep26Amt + bep36Amt + bep48Amt + iref24Amt + ref36Amt;
+        var panelsAmt = refAmt + bepAmt + wepAmt + bep26Amt + bep36Amt + bep48Amt + ref36Amt;
 
         /* GOLA channel (GOLA line only), calculated like the toe kick:
            one channel level along the whole base run (all legs + island,
@@ -4134,8 +4242,8 @@
           baseAmt: baseAmt, wallAmt: wallAmt, tallAmt: tallAmt,
           crownAmt: crownAmt, crownPcs: crownPcs, crownType: crownType, crownPer: crownPer,
           golaAmt: golaAmt, golaBars: golaBars, golaIn: golaIn, golaPer: golaPer, profile: state.profile,
-          ibep24Qty: ibep24Qty, bep26Qty: bep26Qty, bep36Qty: bep36Qty, bep48Qty: bep48Qty, iref24Qty: iref24Qty, ref36Qty: ref36Qty,
-          ibep24Amt: ibep24Amt, bep26Amt: bep26Amt, bep36Amt: bep36Amt, bep48Amt: bep48Amt, iref24Amt: iref24Amt, ref36Amt: ref36Amt,
+          bep26Qty: bep26Qty, bep36Qty: bep36Qty, bep48Qty: bep48Qty, ref36Qty: ref36Qty,
+          bep26Amt: bep26Amt, bep36Amt: bep36Amt, bep48Amt: bep48Amt, ref36Amt: ref36Amt,
           refQty: refQty, bepQty: bepQty, wepQty: wepQty,
           refAmt: refAmt, bepAmt: bepAmt, wepAmt: wepAmt, panelsAmt: panelsAmt,
           fillBaseCount: fillBaseCount, fillWallCount: fillWallCount, fillAmt: fillAmt,
@@ -4154,7 +4262,11 @@
           tallDesign: compressList(tallList),
           ktype: ktype, islandOn: islandOn, islandFt: islandFt, islandAmt: islandAmt, asmIsland: asmIsland,
           islandDesign: compressList(islandDesignList), planLegs: planLegs, tallListRaw: tallList, islandListRaw: islandList, winW: winW,
-          fridgeW: parseInt(state.fridge, 10), dwWrapToB: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL, cooking: state.cooking, dish: state.dish, windowOn: state.window, tooTight: tooTight
+          fridgeW: parseInt(state.fridge, 10), dwWrapToB: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL, cooking: state.cooking, dish: state.dish, windowOn: state.window, tooTight: tooTight,
+          winMsgFridge: winMsgFridge, winMsgPantry: winMsgPantry,
+          winFridgeTo: winAppliedFridge || (winPending && winPending.sig === winSigNow ? winPending.fridgeTo : null),
+          winPantryTo: winAppliedPantry || (winPending && winPending.sig === winSigNow ? winPending.pantryTo : null),
+          winFridgeBlocked: !!(winForceTooTight && winMsgFridge)
         };
         render(lastResult);
       }
@@ -4277,12 +4389,10 @@
           rows.push(["WEP \u2014 Wall End Panel \u2014 12\u2033 x wall height", "Not included", "\u2014", "off"]);
         }
         if (r.panelsMaster === "Yes" && r.islandOn) {
-          [["BEP24 \u2014 Island Side Panel \u2014 24\u2033", r.ibep24Qty, "BEP24", r.ibep24Amt, r.accLow.bep],
-           ["BEP26 \u2014 Island Side Panel \u2014 26\u2033", r.bep26Qty, "BEP26", r.bep26Amt, r.accLow.bep26],
+          [["BEP26 \u2014 Island Side Panel \u2014 26\u2033", r.bep26Qty, "BEP26", r.bep26Amt, r.accLow.bep26],
            ["BEP36 \u2014 Island Side Panel \u2014 36\u2033", r.bep36Qty, "BEP36", r.bep36Amt, r.accLow.bep36],
            ["BEP48 \u2014 Island Side Panel \u2014 48\u2033", r.bep48Qty, "BEP48", r.bep48Amt, r.accLow.bep48],
-           ["REF2496 \u2014 Island Back Panel \u2014 24\u2033 W x 96\u2033 H", r.iref24Qty, "REF2496", r.iref24Amt, r.accLow.ref],
-           ["REF3696 \u2014 Refrigerator End Panel \u2014 36\u2033 W x 96\u2033 H (island back)", r.ref36Qty, "REF3696", r.ref36Amt, r.accLow.ref36]].forEach(function (pr) {
+           ["REF3696 \u2014 Island Back Panel \u2014 36\u2033 W x 96\u2033 H", r.ref36Qty, "REF3696", r.ref36Amt, r.accLow.ref36]].forEach(function (pr) {
             if (pr[1] > 0) rows.push([pr[0], pr[1] + "\u00D7 " + pr[2] + " \u00D7 " + money(pr[4] || 0) + " \u00B7 " + r.lowers, money(pr[3]), ""]);
             else rows.push([pr[0], "Not included", "\u2014", "off"]);
           });
@@ -4340,6 +4450,19 @@
         setText(sumPplEl, (r.ppl === null) ? "\u2014" : money2(r.ppl));
         var noteEl = $("est-note");
         if (noteEl) noteEl.textContent = r.islandOn ? "Price per Lft = NET TOTAL \u00F7 (Base Lft + Tall Lft + Island Lft) \u2014 the full net loaded onto the floor run." : "Price per Lft = NET TOTAL \u00F7 (Base Lft + Tall Lft) \u2014 the full net loaded onto the floor run.";
+        /* Window-clear notice, beside the placement panel: an item
+           whose picked wall would put it in front of the window is
+           refused there — the design keeps the window clear and the
+           notice says why and where the item went instead. */
+        var winObEl = $("win-obstruct");
+        if (winObEl) {
+          var winMsgs = [];
+          if (r.winMsgFridge && r.winFridgeBlocked) winMsgs.push("<b>The fridge is obstructing the window</b> \u2014 that placement was refused: no other wall can take the fridge clear of the window, so please update the dimensions or the placement picks.");
+          else if (r.winMsgFridge) winMsgs.push("<b>The fridge is obstructing the window</b> \u2014 that placement was refused and the fridge was moved to wall " + (r.winFridgeTo || "another wall") + " so the window stays clear.");
+          if (r.winMsgPantry) winMsgs.push("<b>The pantry is obstructing the window</b> \u2014 that placement was refused and the pantry was moved to wall " + (r.winPantryTo || "another wall") + " so the window stays clear.");
+          if (winMsgs.length) { winObEl.hidden = false; winObEl.innerHTML = winMsgs.join("<br>"); }
+          else winObEl.hidden = true;
+        }
         drawPlan(r);
       }
 
@@ -4372,7 +4495,7 @@
         $("in-windoww").value = "";
         $("in-legA").value = ""; $("in-legB").value = ""; $("in-legC").value = "";
         $("in-island").value = "";
-        $("in-ibep24").value = ""; $("in-bep26").value = ""; $("in-bep36").value = ""; $("in-bep48").value = ""; $("in-iref24").value = ""; $("in-ref36").value = "";
+        $("in-bep26").value = ""; $("in-bep36").value = ""; $("in-bep48").value = ""; $("in-ref36").value = "";
         $("in-drawer-12").value = ""; $("in-drawer-15").value = ""; $("in-drawer-18").value = ""; $("in-drawer-21").value = ""; $("in-drawer-24").value = ""; $("in-drawer-27").value = ""; $("in-drawer-30").value = ""; $("in-drawer-33").value = ""; $("in-drawer-36").value = "";
         measure = { sink: null, window: null, hood: null };
         measureSel = null;
@@ -4432,7 +4555,7 @@
          the whole wiring block, which leaves every stepper on the page
          dead (values stuck at 0) while the earlier-wired segmented bars
          keep working — the exact symptom reported for Tall cabinets. */
-      ["in-base", "in-wall", "in-tall", "in-ref", "in-bep", "in-wep", "in-windoww", "in-legA", "in-legB", "in-legC", "in-island", "in-ibep24", "in-bep26", "in-bep36", "in-bep48", "in-iref24", "in-ref36", "in-drawer-12", "in-drawer-15", "in-drawer-18", "in-drawer-21", "in-drawer-24", "in-drawer-27", "in-drawer-30", "in-drawer-33", "in-drawer-36"].forEach(function (id) {
+      ["in-base", "in-wall", "in-tall", "in-ref", "in-bep", "in-wep", "in-windoww", "in-legA", "in-legB", "in-legC", "in-island", "in-bep26", "in-bep36", "in-bep48", "in-ref36", "in-drawer-12", "in-drawer-15", "in-drawer-18", "in-drawer-21", "in-drawer-24", "in-drawer-27", "in-drawer-30", "in-drawer-33", "in-drawer-36"].forEach(function (id) {
         var el = $(id);
         if (!el) return;
         el.addEventListener("input", calc);
@@ -4481,12 +4604,10 @@
         if (r.panelsMaster === "Yes" && r.refAmt > 0) lines.push("REF2496 \u2014 Refrigerator End Panel \u2014 24in W x 96in H \u00D7" + r.refQty + ": " + money(r.refAmt));
         if (r.panelsMaster === "Yes" && r.bepAmt > 0) lines.push("BEP24 \u2014 Base End Panel \u2014 24in \u00D7" + r.bepQty + ": " + money(r.bepAmt));
         if (r.panelsMaster === "Yes" && r.wepAmt > 0) lines.push("WEP \u2014 Wall End Panel \u2014 12in x wall height \u00D7" + r.wepQty + ": " + money(r.wepAmt));
-        if (r.panelsMaster === "Yes" && r.ibep24Amt > 0) lines.push("BEP24 \u2014 Island Side Panel \u2014 24in \u00D7" + r.ibep24Qty + ": " + money(r.ibep24Amt));
         if (r.panelsMaster === "Yes" && r.bep26Amt > 0) lines.push("BEP26 \u2014 Island Side Panel \u2014 26in \u00D7" + r.bep26Qty + ": " + money(r.bep26Amt));
         if (r.panelsMaster === "Yes" && r.bep36Amt > 0) lines.push("BEP36 \u2014 Island Side Panel \u2014 36in \u00D7" + r.bep36Qty + ": " + money(r.bep36Amt));
         if (r.panelsMaster === "Yes" && r.bep48Amt > 0) lines.push("BEP48 \u2014 Island Side Panel \u2014 48in \u00D7" + r.bep48Qty + ": " + money(r.bep48Amt));
-        if (r.panelsMaster === "Yes" && r.iref24Amt > 0) lines.push("REF2496 \u2014 Island Back Panel \u2014 24in W x 96in H \u00D7" + r.iref24Qty + ": " + money(r.iref24Amt));
-        if (r.panelsMaster === "Yes" && r.ref36Amt > 0) lines.push("REF3696 \u2014 Refrigerator End Panel \u2014 36in W x 96in H (island back) \u00D7" + r.ref36Qty + ": " + money(r.ref36Amt));
+        if (r.panelsMaster === "Yes" && r.ref36Amt > 0) lines.push("REF3696 \u2014 Island Back Panel \u2014 36in W x 96in H \u00D7" + r.ref36Qty + ": " + money(r.ref36Amt));
         if ((r.fillBaseCount + r.fillWallCount) > 0) {
           var cparts = [];
           if (r.fillBaseCount > 0) cparts.push("base \u00D7" + r.fillBaseCount + " (" + r.fillBaseSku + ")");
