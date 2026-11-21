@@ -1254,6 +1254,14 @@
         if (!d || !state.picks) return true;
         return state.picks.window === d.window && state.picks.fridge === d.fridge && state.picks.sink === d.sink && state.picks.stove === d.stove;
       }
+      /* BTC18 sink-cluster rule: when the garbage pull-out is selected
+         and the sink leg cannot fit fridge + corner + sink + dishwasher
+         + BTC18, calc() relocates the FRIDGE (never the BTC18) to
+         another leg and records the effective fridge leg here, so the
+         plan painter puts the fridge where the estimate composed it.
+         Null = the fridge stays on its picked / default leg. */
+      var effFridgeKeyNow = null;
+      function fridgePickEff() { return effFridgeKeyNow || (state.picks ? state.picks.fridge : null); }
       function paintedUppers() {
         if (state.line !== "Regular") return false;
         var up = state.uppers ? effColour(state.line, state.uppers) : effColour(state.line, state.lowers);
@@ -2479,16 +2487,21 @@
           if (upperFlip) legA.uCloseEnd = lenA - upperCornerOff(ucSku);
           legs.A = legA; legs.B = legB;
           if (arrangementIsDefault()) {
+            /* The fridge normally starts leg A — but when calc moved
+               it to leg B to keep the BTC18 sink cluster together
+               (plB.fridgeOnB), it paints at the far end of leg B and
+               leg A paints with no fridge zone. */
+            var fridgeMovedB2 = !!(plB && plB.fridgeOnB);
             doSinkLeg(legA, plA, {
               cornerEndSku: baseFlip ? null : bcSku, uCornerEnd: upperFlip ? null : ucSku,
               ze: baseFlip ? lenA - baseCornerOff(bcSku) : lenA, uZe: upperFlip ? lenA - upperCornerOff(ucSku) : lenA,
-              dwW: plB.dwWrap ? 0 : dwW, split: "all", fridgeStart: true
+              dwW: plB.dwWrap ? 0 : dwW, split: "all", fridgeStart: !fridgeMovedB2
             });
-            doRangeLeg(legB, plB, { off: offB, end: lenB, fridge: false, template: "fillFirst", uOff: uOffB, dwAtStart: plB.dwWrap ? dwW : 0, uCornerStart: upperFlip ? ucSku : null });
+            doRangeLeg(legB, plB, { off: offB, end: lenB, fridge: fridgeMovedB2, template: "fillFirst", uOff: uOffB, dwAtStart: plB.dwWrap ? dwW : 0, uCornerStart: upperFlip ? ucSku : null });
           } else {
             var pkP = state.picks;
-            paintLegRoles(legA, plA, { sink: pkP.sink === "A", range: pkP.stove === "A", fridgePos: pkP.fridge === "A" ? "start" : null, cornerEndSku: baseFlip ? null : bcSku, uCornerEnd: upperFlip ? null : ucSku, winHere: pkP.window === "A", split: "all", ze: baseFlip ? lenA - baseCornerOff(bcSku) : null, uZe: upperFlip ? lenA - upperCornerOff(ucSku) : null });
-            paintLegRoles(legB, plB, { sink: pkP.sink === "B", range: pkP.stove === "B", fridgePos: pkP.fridge === "B" ? "end" : null, off: offB, uOff: uOffB, winHere: pkP.window === "B" });
+            paintLegRoles(legA, plA, { sink: pkP.sink === "A", range: pkP.stove === "A", fridgePos: fridgePickEff() === "A" ? "start" : null, cornerEndSku: baseFlip ? null : bcSku, uCornerEnd: upperFlip ? null : ucSku, winHere: pkP.window === "A", split: "all", ze: baseFlip ? lenA - baseCornerOff(bcSku) : null, uZe: upperFlip ? lenA - upperCornerOff(ucSku) : null });
+            paintLegRoles(legB, plB, { sink: pkP.sink === "B", range: pkP.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, off: offB, uOff: uOffB, winHere: pkP.window === "B" });
           }
           if (baseFlip && bcSku) legB.baseSegs = [{ kind: "corner", sku: bcSku, s: 0, w: skuW(bcSku) }].concat(legB.baseSegs);
           var pantryOnA = !!(state.picks && state.picks.pantry === "A");
@@ -2524,12 +2537,13 @@
           var legGB = { key: "B", frame: "HB", x: 0, y: 93, len: lenGB, off: 0, sMax: lenGB };
           legs.A = legGA; legs.B = legGB;
           if (arrangementIsDefault()) {
-            doSinkLeg(legGA, plGA, { split: "half", fridgeEnd: true });
-            doRangeLeg(legGB, plGB, { off: 0, fridge: false, template: "rangeFirst", uOff: 0 });
+            var fridgeMovedG2 = !!(plGB && plGB.fridgeOnB);
+            doSinkLeg(legGA, plGA, { split: "half", fridgeEnd: !fridgeMovedG2 });
+            doRangeLeg(legGB, plGB, { off: 0, fridge: fridgeMovedG2, template: "rangeFirst", uOff: 0 });
           } else {
             var pkG = state.picks;
-            paintLegRoles(legGA, plGA, { sink: pkG.sink === "A", range: pkG.stove === "A", fridgePos: pkG.fridge === "A" ? "end" : null, winHere: pkG.window === "A", split: "half" });
-            paintLegRoles(legGB, plGB, { sink: pkG.sink === "B", range: pkG.stove === "B", fridgePos: pkG.fridge === "B" ? "end" : null, winHere: pkG.window === "B", split: "all" });
+            paintLegRoles(legGA, plGA, { sink: pkG.sink === "A", range: pkG.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, winHere: pkG.window === "A", split: "half" });
+            paintLegRoles(legGB, plGB, { sink: pkG.sink === "B", range: pkG.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, winHere: pkG.window === "B", split: "all" });
           }
           var pantryOnB = !!(state.picks && state.picks.pantry === "B");
           wallH(pantryOnB ? -6 : -tallTotal - 6, lenGA + 6, 0);
@@ -2565,9 +2579,9 @@
             doRangeLeg(legUC, plUC, { off: offU, end: lenUC, fridge: false, template: "fillFirst", uOff: uOffU });
           } else {
             var pkU2 = state.picks;
-            paintLegRoles(legUB, plUB, { sink: pkU2.sink === "B", range: pkU2.stove === "B", fridgePos: pkU2.fridge === "B" ? "end" : null, cornerStartSku: bcU, cornerEndSku: bcU, uCornerStart: ucU, uCornerEnd: ucU, winHere: pkU2.window === "B", split: "centre" });
-            paintLegRoles(legUA, plUA, { sink: pkU2.sink === "A", range: pkU2.stove === "A", fridgePos: pkU2.fridge === "A" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "A" });
-            paintLegRoles(legUC, plUC, { sink: pkU2.sink === "C", range: pkU2.stove === "C", fridgePos: pkU2.fridge === "C" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "C" });
+            paintLegRoles(legUB, plUB, { sink: pkU2.sink === "B", range: pkU2.stove === "B", fridgePos: fridgePickEff() === "B" ? "end" : null, cornerStartSku: bcU, cornerEndSku: bcU, uCornerStart: ucU, uCornerEnd: ucU, winHere: pkU2.window === "B", split: "centre" });
+            paintLegRoles(legUA, plUA, { sink: pkU2.sink === "A", range: pkU2.stove === "A", fridgePos: fridgePickEff() === "A" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "A" });
+            paintLegRoles(legUC, plUC, { sink: pkU2.sink === "C", range: pkU2.stove === "C", fridgePos: fridgePickEff() === "C" ? "end" : null, off: offU, uOff: uOffU, winHere: pkU2.window === "C" });
           }
           var pantryOnAU = !!(state.picks && state.picks.pantry === "A");
           var tallC = 0, tallA = 0;
@@ -2997,18 +3011,25 @@
           return legList("baseFill", u);
         }
         function composeSinkBase(totalIn, o) {
-          /* o: { cornerSkus: [], fridgeIn, dwIn, stoveIn } — totalIn is the
-             leg length available to this composition (any corner footprint
-             owed to the OTHER leg already deducted by the caller).
-             A leg with no entered length gets no cabinets at all — the
-             mandatory items apply only to a real, dimensioned leg. */
+          /* o: { cornerSkus: [], fridgeIn, dwIn, stoveIn, btcIn } — totalIn
+             is the leg length available to this composition (any corner
+             footprint owed to the OTHER leg already deducted by the
+             caller). A leg with no entered length gets no cabinets at
+             all — the mandatory items apply only to a real, dimensioned
+             leg. btcIn reserves the BTC18 garbage pull-out INSIDE the
+             sink cluster: its 18in comes off the fill space up front and
+             the cabinet itself is composed as the last fill before the
+             corner, which is the slot that paints immediately beside
+             the sink base — the BTC18 belongs to the sink cluster and
+             is never composed onto the stove leg. */
           if (!(totalIn > 0)) return [];
           var cornerSkus = o.cornerSkus || [];
           var cornerW = 0; cornerSkus.forEach(function (s) { cornerW += skuW(s); });
-          var space = totalIn - (o.fridgeIn || 0) - (o.dwIn || 0) - (o.stoveIn || 0);
+          var space = totalIn - (o.fridgeIn || 0) - (o.dwIn || 0) - (o.stoveIn || 0) - (o.btcIn || 0);
           var rest = space - cornerW - 30; /* SB30 is mandatory */
           var list = ["SB30"];
           list = list.concat(fillForIn(rest));
+          if (o.btcIn) list.push("BTC18");
           cornerSkus.forEach(function (s) { list.push(s); });
           return list;
         }
@@ -3130,6 +3151,18 @@
           return false;
         }
         var dwWrapToB = false, baseFlipL = false, upperFlipL = false;
+        /* BTC18 sink-cluster state for this calc: btcOn (accessory
+           selected), btcComposed (already composed into the sink leg /
+           island run up front, so the accessory step must not place it
+           again), btcNoFit (no allowed configuration keeps the cluster
+           together — forces the too-tight note instead of parking the
+           BTC18 beside the stove), btcFridgeOnB (default L / Galley:
+           the fridge was relocated to leg B to keep the cluster on A),
+           btcFridgeKey (generic layouts: effective fridge leg after a
+           BTC-driven relocation). */
+        var btcOn = state.accMaster === "Yes" && state.btc === "Yes";
+        var btcComposed = false, btcNoFit = false, btcFridgeOnB = false, btcFridgeKey = null;
+        effFridgeKeyNow = null;
 
         var baseList = [], wallList = [];
         var tallList = designList(line, "tall" + tallH, unitsFor(tallL));
@@ -3156,12 +3189,20 @@
             var islListG;
             if (sinkIsl && stoveIsl) {
               baseList = fillForIn(mainInI - frInI);
-              islListG = composeSinkBase(islInI, { cornerSkus: [], fridgeIn: 0, dwIn: dwInI, stoveIn: 30 });
+              /* BTC18 rides with the sink into the island, composed
+                 beside the sink base in the island run. */
+              var btcIsl1 = (btcOn && islInI - dwInI - 30 - 30 >= 18) ? 18 : 0;
+              if (btcIsl1) btcComposed = true;
+              islListG = composeSinkBase(islInI, { cornerSkus: [], fridgeIn: 0, dwIn: dwInI, stoveIn: 30, btcIn: btcIsl1 });
             } else if (sinkIsl) {
               baseList = withCT(fillForIn(mainInI - frInI - 30));
-              islListG = composeSinkBase(islInI, { cornerSkus: [], fridgeIn: 0, dwIn: dwInI, stoveIn: 0 });
+              var btcIsl2 = (btcOn && islInI - dwInI - 30 >= 18) ? 18 : 0;
+              if (btcIsl2) btcComposed = true;
+              islListG = composeSinkBase(islInI, { cornerSkus: [], fridgeIn: 0, dwIn: dwInI, stoveIn: 0, btcIn: btcIsl2 });
             } else {
-              baseList = composeSinkBase(mainInI, { cornerSkus: [], fridgeIn: frInI, dwIn: dwInI, stoveIn: 0 });
+              var btcMainI = (btcOn && mainInI - frInI - dwInI - 30 >= 18) ? 18 : 0;
+              if (btcMainI) btcComposed = true;
+              baseList = composeSinkBase(mainInI, { cornerSkus: [], fridgeIn: frInI, dwIn: dwInI, stoveIn: 0, btcIn: btcMainI });
               islListG = withCT(fillForIn(islInI - 30));
             }
             wallList = legList("wall" + wallH + "F" + state.fridge, unitsFor(wallL) - winUnits);
@@ -3178,8 +3219,13 @@
           baseList = legList("base" + (cooktop ? "CT" : ""), effB);
           if (!hasSink(baseList)) {
             /* Pattern dropped the sink on this short run — recompose with
-               the sink + DW mandatory (fridge + stove stay on this run). */
-            baseList = composeSinkBase(baseL * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 30 });
+               the sink + DW mandatory (fridge + stove stay on this run).
+               The BTC18 is reserved in the same recomposition: if the
+               run cannot hold the sink cluster plus the pull-out, the
+               composed run overflows and the plan reads too tight —
+               the pull-out is never dropped onto the stove side. */
+            baseList = composeSinkBase(baseL * 12, { cornerSkus: [], fridgeIn: fridgeUnits * 3, dwIn: dwUnits * 3, stoveIn: 30, btcIn: btcOn ? 18 : 0 });
+            if (btcOn) btcComposed = true;
             if (cooktop) baseList = withCT(baseList);
           }
           wallList = legList("wall" + wallH + "F" + state.fridge, unitsFor(wallL) - winUnits);
@@ -3230,13 +3276,39 @@
             }
             var ucFlipG = flipG && state.upperCorner === "WBC";
             baseFlipL = flipG; upperFlipL = ucFlipG;
+            /* BTC18 cluster rule for picked layouts: if the fridge sits
+               on the sink's leg and that leg cannot fit corner + sink +
+               dishwasher + BTC18 with the fridge there — but fits the
+               cluster without it, and the other leg can take the
+               fridge — the fridge moves to the other leg. Only the
+               fridge moves; the BTC18 never leaves the sink leg. */
+            var fridgeKeyG = pk.fridge;
+            if (btcOn && pk.fridge === pk.sink && (pk.sink === "A" || pk.sink === "B")) {
+              var oKeyG = pk.sink === "A" ? "B" : "A";
+              var sLenG = pk.sink === "A" ? lenAinG : lenBinG;
+              var oLenG = oKeyG === "A" ? lenAinG : lenBinG;
+              var sChargeG = !isLG ? 0 : (((pk.sink === "A" && !flipG) || (pk.sink === "B" && flipG)) ? cbWG : cbOwedG);
+              var oChargeG = !isLG ? 0 : (((oKeyG === "A" && !flipG) || (oKeyG === "B" && flipG)) ? cbWG : cbOwedG);
+              var sNeedG = sChargeG + 30 + dwInG + 18 + (pk.stove === pk.sink ? 30 : 0);
+              var oNeedG = oChargeG + frInG + (pk.stove === oKeyG ? 30 : 0);
+              if (sNeedG + frInG > sLenG + 0.01 && sNeedG <= sLenG + 0.01 && oLenG > 0 && oNeedG <= oLenG + 0.01) {
+                fridgeKeyG = oKeyG; btcFridgeKey = oKeyG; effFridgeKeyNow = oKeyG;
+              }
+            }
             function legBaseG(key, lenIn) {
-              var sinkHere = pk.sink === key, stoveHere = pk.stove === key, fridgeHere = pk.fridge === key;
+              var sinkHere = pk.sink === key, stoveHere = pk.stove === key, fridgeHere = fridgeKeyG === key;
               var cornerSkus = (isLG && ((key === "A" && !flipG) || (key === "B" && flipG))) ? [cbSkuG] : [];
               var totalIn = lenIn - ((isLG && key === "B" && !flipG) ? cbOwedG : (isLG && key === "A" && flipG) ? cbOwedG : 0);
               var list;
               if (sinkHere) {
-                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInG : 0, dwIn: dwInG, stoveIn: stoveHere ? 30 : 0 });
+                /* Reserve the BTC18 in the sink leg up front when the
+                   cluster (corner + fridge as finally placed + sink +
+                   DW + stove zone if shared) leaves 18in of fill. */
+                var cwS = 0; cornerSkus.forEach(function (s) { cwS += skuW(s); });
+                var restS = totalIn - (fridgeHere ? frInG : 0) - dwInG - (stoveHere ? 30 : 0) - cwS - 30;
+                var btcG = (btcOn && restS >= 18) ? 18 : 0;
+                if (btcG) btcComposed = true;
+                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInG : 0, dwIn: dwInG, stoveIn: stoveHere ? 30 : 0, btcIn: btcG });
               } else {
                 var cw = 0; cornerSkus.forEach(function (s) { cw += skuW(s); });
                 list = fillForIn(totalIn - (fridgeHere ? frInG : 0) - (stoveHere ? 30 : 0) - cw).concat(cornerSkus);
@@ -3251,7 +3323,7 @@
               if (pk.window === key) units -= winUnits;
               var list = legList("wallFill" + wallH, Math.max(0, units));
               if (isLG && ((key === "A" && !ucFlipG) || (key === "B" && ucFlipG)) && lenIn > 0) list.push(ucSkuG);
-              if (pk.fridge === key && lenIn > 0) list.push(fridgeCabSku2);
+              if (fridgeKeyG === key && lenIn > 0) list.push(fridgeCabSku2);
               if (pk.stove === key && lenIn > 0) list.push("W3018");
               return list;
             }
@@ -3277,7 +3349,9 @@
               var islInG = Math.min(num("in-island"), 360);
               var sinkIslG = pk.sink === "Island", stoveIslG = pk.stove === "Island";
               if (sinkIslG) {
-                var islListLG = composeSinkBase(islInG, { cornerSkus: [], fridgeIn: 0, dwIn: dwInG, stoveIn: stoveIslG ? 30 : 0 });
+                var btcIslL = (btcOn && islInG - dwInG - (stoveIslG ? 30 : 0) - 30 >= 18) ? 18 : 0;
+                if (btcIslL) btcComposed = true;
+                var islListLG = composeSinkBase(islInG, { cornerSkus: [], fridgeIn: 0, dwIn: dwInG, stoveIn: stoveIslG ? 30 : 0, btcIn: btcIslL });
                 if (stoveIslG && cooktop) islListLG = withCT(islListLG);
                 islandListOverride = islListLG;
               } else {
@@ -3325,6 +3399,54 @@
               if (!dwA) dwWrap = lenAin2 - fridgeIn2 - footA >= needA && lenBin2 - footB - 30 - dwIn2 >= 0;
               return { flip: flip, dwA: dwA, dwWrap: dwWrap, ok: dwA || dwWrap };
             }
+            /* BTC18 configurations: with the garbage pull-out selected,
+               leg A must hold the whole sink cluster together — corner
+               charge + SB30 + dishwasher + BTC18 — with the DW on A
+               (never wrapped away from the sink for the BTC's sake).
+               Configurations are tried in order: fridge stays on A;
+               corner flipped; fridge relocated to leg B; both. Only
+               the fridge and the corner move — the BTC18 is composed
+               into leg A beside the sink in whichever configuration
+               first fits both legs. If none fits, btcNoFit forces the
+               too-tight note rather than parking the pull-out by the
+               stove on leg B. */
+            var btcCfg2 = null;
+            if (btcOn && legAft > 0) {
+              var evalBtc2 = function (flip, fridgeB) {
+                if (flip && !canFlip2) return null;
+                if (fridgeB && !(legBft > 0)) return null;
+                var cA = flip ? cbOnB2 : cbOnA2;
+                var cB = flip ? cbOnA2 : cbOnB2;
+                var needA = cA + 30 + dwIn2 + 18 + (fridgeB ? 0 : fridgeIn2);
+                var needB = cB + 30 + (fridgeB ? fridgeIn2 : 0);
+                if (needA > lenAin2 + 0.01) return null;
+                if (legBft > 0 && needB > lenBin2 + 0.01) return null;
+                return { flip: flip, fridgeB: fridgeB };
+              };
+              btcCfg2 = evalBtc2(false, false) || evalBtc2(true, false) || evalBtc2(false, true) || evalBtc2(true, true);
+              if (!btcCfg2) btcNoFit = true;
+            }
+            if (btcCfg2) {
+              baseFlipL = btcCfg2.flip; dwWrapToB = false; btcFridgeOnB = btcCfg2.fridgeB;
+              upperFlipL = baseFlipL && state.upperCorner === "WBC";
+              var footA2 = baseFlipL ? cbOnB2 : 0, footB2 = baseFlipL ? cbOnA2 : cbOnB2;
+              bA2 = composeSinkBase(lenAin2 - footA2, { cornerSkus: baseFlipL ? [] : [cbSku2], fridgeIn: btcFridgeOnB ? 0 : fridgeIn2, dwIn: dwIn2, stoveIn: 0, btcIn: 18 });
+              btcComposed = true;
+              var bBfillIn2 = Math.floor((lenBin2 - footB2 - 30 - (btcFridgeOnB ? fridgeIn2 : 0)) / 3) * 3;
+              bB2 = withCT(fillForIn(bBfillIn2));
+              if (baseFlipL) bB2 = [cbSku2].concat(bB2);
+              if (upperFlipL) {
+                wA2 = legList("wallFill" + wallH, Math.floor((lenAin2 - ucOnB2) / 3) - winUnits); if (legAft > 0 && !btcFridgeOnB) wA2.push(fridgeCabSku2);
+                var wBfillU2 = Math.floor((lenBin2 - ucOnA2) / 3);
+                wB2 = [ucSku2].concat(legList("wallFill" + wallH, wBfillU2)); if (legBft > 0) wB2.push("W3018"); if (legBft > 0 && btcFridgeOnB) wB2.push(fridgeCabSku2);
+              } else {
+                var wBunits2 = Math.floor((legBft * 12 - ucOnB2) / 3);
+                wA2 = legList("wallFill" + wallH + "C" + state.upperCorner, Au - winUnits); if (legAft > 0 && !btcFridgeOnB) wA2.push(fridgeCabSku2);
+                wB2 = legList("wallFill" + wallH, wBunits2); if (legBft > 0) wB2.push("W3018"); if (legBft > 0 && btcFridgeOnB) wB2.push(fridgeCabSku2);
+              }
+              effA2 = clampU(Au - (btcFridgeOnB ? 0 : fridgeUnits) - dwUnits); effB2 = clampU(bBfillIn2 / 3);
+              if (state.dish === "Yes") dispA2 = withDWText(bA2);
+            } else {
             var planL2 = evalL2(false);
             if (!planL2.dwA && canFlip2) { var altL2 = evalL2(true); if (altL2.dwA) planL2 = altL2; }
             if (!planL2.ok && canFlip2) { var alt2L2 = evalL2(true); if (alt2L2.ok) planL2 = alt2L2; }
@@ -3358,12 +3480,13 @@
               if (dwWrapToB) { dispA2 = bA2; dispB2 = dwTextAfterCorner(bB2); }
               else dispA2 = withDWText(bA2);
             }
+            }
           }
           baseList = bA2.concat(bB2); wallList = wA2.concat(wB2);
           effBaseUnitsTotal = effA2 + effB2;
           baseL = legAft + legBft; wallL = legAft + legBft;
           denomFt = baseL + tallL;
-          planLegs = [{ key: "A", base: bA2, wall: wA2, ft: legAft }, { key: "B", base: bB2, wall: wB2, ft: legBft, dwWrap: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL }];
+          planLegs = [{ key: "A", base: bA2, wall: wA2, ft: legAft }, { key: "B", base: bB2, wall: wB2, ft: legBft, dwWrap: dwWrapToB, baseFlip: baseFlipL, upperFlip: upperFlipL, fridgeOnB: btcFridgeOnB }];
           baseDesignStr = legDesignStr([["A", dispA2 || bA2], ["B", dispB2 || bB2]]);
           wallDesignStr = legDesignStr([["A", wA2], ["B", wB2]]);
         } else if (ktype === "U-Shape") {
@@ -3380,13 +3503,37 @@
             var baseFootU = state.baseCorner === "BBC" ? 26 : 33, upFootU = state.upperCorner === "WBC" ? 14 : 24;
             var frInU = fridgeUnits * 3, dwInU = dwUnits * 3;
             var fridgeCabU = "W" + state.fridge + (wallH === "30" ? "15" : wallH === "36" ? "18" : "24") + "24";
+            /* BTC18 cluster rule, U-Shape picked layouts: same fridge
+               relocation as the L — if the fridge shares the sink's leg
+               and blocks the cluster there, it moves to a free leg
+               (never the stove's leg) that can hold it. */
+            var fridgeKeyU = pkU.fridge;
+            if (btcOn && pkU.fridge === pkU.sink) {
+              var sLenU = pkU.sink === "A" ? legAft * 12 : pkU.sink === "C" ? legCft * 12 : legBft * 12;
+              var sChargeU = pkU.sink === "B" ? 2 * skuW(cbSkuU) : baseFootU;
+              var sNeedU = sChargeU + 30 + dwInU + 18 + (pkU.stove === pkU.sink ? 30 : 0);
+              if (sNeedU + frInU > sLenU + 0.01 && sNeedU <= sLenU + 0.01) {
+                var candU = ["A", "C", "B"];
+                for (var ciU = 0; ciU < candU.length; ciU++) {
+                  var ckU = candU[ciU];
+                  if (ckU === pkU.sink || ckU === pkU.stove) continue;
+                  var cLenU = ckU === "A" ? legAft * 12 : ckU === "C" ? legCft * 12 : legBft * 12;
+                  var cChargeU = ckU === "B" ? 2 * skuW(cbSkuU) : baseFootU;
+                  if (cLenU > 0 && cChargeU + frInU <= cLenU + 0.01) { fridgeKeyU = ckU; btcFridgeKey = ckU; effFridgeKeyNow = ckU; break; }
+                }
+              }
+            }
             function legBaseU(key, lenIn) {
-              var sinkHere = pkU.sink === key, stoveHere = pkU.stove === key, fridgeHere = pkU.fridge === key;
+              var sinkHere = pkU.sink === key, stoveHere = pkU.stove === key, fridgeHere = fridgeKeyU === key;
               var cornerSkus = key === "B" ? [cbSkuU, cbSkuU] : [];
               var totalIn = lenIn - (key === "B" ? 0 : baseFootU);
               var list;
               if (sinkHere) {
-                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInU : 0, dwIn: dwInU, stoveIn: stoveHere ? 30 : 0 });
+                var cwSU = 0; cornerSkus.forEach(function (s) { cwSU += skuW(s); });
+                var restSU = totalIn - (fridgeHere ? frInU : 0) - dwInU - (stoveHere ? 30 : 0) - cwSU - 30;
+                var btcU = (btcOn && restSU >= 18) ? 18 : 0;
+                if (btcU) btcComposed = true;
+                list = composeSinkBase(totalIn, { cornerSkus: cornerSkus, fridgeIn: fridgeHere ? frInU : 0, dwIn: dwInU, stoveIn: stoveHere ? 30 : 0, btcIn: btcU });
               } else {
                 var cw = 0; cornerSkus.forEach(function (s) { cw += skuW(s); });
                 list = fillForIn(totalIn - (fridgeHere ? frInU : 0) - (stoveHere ? 30 : 0) - cw).concat(cornerSkus);
@@ -3401,7 +3548,7 @@
               if (pkU.window === key) units -= winUnits;
               var list = legList("wallFill" + wallH, Math.max(0, units));
               if (key === "B" && lenIn > 0) { list.push(ucSkuU); list.push(ucSkuU); }
-              if (pkU.fridge === key && lenIn > 0) list.push(fridgeCabU);
+              if (fridgeKeyU === key && lenIn > 0) list.push(fridgeCabU);
               if (pkU.stove === key && lenIn > 0) list.push("W3018");
               return list;
             }
@@ -3418,9 +3565,12 @@
           bB3 = legList("base" + state.baseCorner + state.baseCorner, Bu3 - dwUnits);
           if (!hasSink(bB3)) {
             /* Sink leg is the back wall (B) with a corner at each end —
-               recompose so SB30 + DW survive at any width. */
+               recompose so SB30 + DW survive at any width. The BTC18
+               is reserved in the same recomposition when it fits. */
             var cbSku3 = state.baseCorner === "BBC" ? "BBC42" : state.baseCorner + "33";
-            bB3 = composeSinkBase(legBft * 12, { cornerSkus: [cbSku3, cbSku3], fridgeIn: 0, dwIn: dwUnits * 3, stoveIn: 0 });
+            var btcU3 = (btcOn && legBft * 12 - 2 * skuW(cbSku3) - dwUnits * 3 - 30 >= 18) ? 18 : 0;
+            if (btcU3) btcComposed = true;
+            bB3 = composeSinkBase(legBft * 12, { cornerSkus: [cbSku3, cbSku3], fridgeIn: 0, dwIn: dwUnits * 3, stoveIn: 0, btcIn: btcU3 });
           }
           /* Legs A and C are measured into the back-wall corners: their fills
              are composed on what remains after the corner footprint at the
@@ -3513,13 +3663,18 @@
            adjacent fills — every leg's total width is preserved, so
            runs stay continuous and real-sized, and the neighbouring
            cabinets change size around the accessory). Placement:
-           - BTC18 stays CLOSE TO THE SINK: it takes the fill slot that
-             paints immediately beside the sink base on the sink's own
-             leg (or island run, when the sink is on the island). If
-             the sink leg cannot tile it in, it goes to the FIRST fill
-             slot of the adjoining leg — which paints immediately after
-             the corner cabinet there, the same closeness rule as the
-             dishwasher wrap.
+           - BTC18 belongs to the SINK CLUSTER. Wherever the sink leg
+             is composed through composeSinkBase, its 18in is reserved
+             there up front and it is composed immediately beside the
+             sink base (btcComposed). On pattern-composed sink legs it
+             takes the fill slot that paints beside the sink / DW
+             cluster on the sink's OWN leg or island run. It is NEVER
+             placed on another leg: the old adjoining-leg fallback put
+             it in the stove leg's first fill slot, which paints
+             immediately beside the range — the exact placement the
+             user rejected. When the sink leg cannot hold it even after
+             the fridge relocation / corner flip tried during
+             composition, btcNoFit shows the too-tight note instead.
            - The spice rack ALWAYS sits BESIDE THE STOVE: the fill slot
              that paints immediately next to the range zone on the
              stove's leg (second fill in the fill-first engines, first
@@ -3541,29 +3696,59 @@
           if (ktype === "Straight") { sinkKeyA = "Main"; stoveKeyA = "Main"; }
           else if (ktype === "Island") { sinkKeyA = state.picks.sink === "Island" ? "Island" : "Main"; stoveKeyA = state.picks.stove === "Island" ? "Island" : "Main"; }
           else { sinkKeyA = state.picks.sink; stoveKeyA = state.picks.stove; }
-          if (state.btc === "Yes") {
+          if (state.btc === "Yes" && !btcComposed) {
             var sinkListA = listForAcc(sinkKeyA);
             var placedBtc = false;
             if (sinkListA) {
-              var nFillS = fillPosOf(sinkListA).length;
-              if (nFillS) placedBtc = convertFillForDrawer(sinkListA, "BTC18", nFillS - 1);
-            }
-            if (!placedBtc) {
-              /* Adjoining leg: the leg after the sink leg in run order
-                 (for an island sink, the main wall run). First fill
-                 slot = immediately after that leg's corner cabinet. */
-              var orderA = planLegs.map(function (pl) { return pl.key; });
-              var adjKeys = [];
-              if (sinkKeyA === "Island") adjKeys = orderA.slice();
-              else {
-                var si = orderA.indexOf(sinkKeyA);
-                if (si >= 0) { adjKeys = orderA.slice(si + 1).concat(orderA.slice(0, si)); }
+              var posS = fillPosOf(sinkListA);
+              if (posS.length) {
+                /* Beside-the-sink slot: on sink-run legs the last fill
+                   paints immediately beside the sink base; on the
+                   centred / half-split legs (default Galley A, default
+                   U back wall) the fill at the split point does — the
+                   last fill before the sink, or the first after the
+                   DW when every fill paints before it. On a single
+                   shared run (Straight / Island main) a lone fill
+                   paints beside the RANGE, so at least two fills are
+                   required before the pull-out may take the last one. */
+                var tgtB = posS.length - 1;
+                var halfCase = (ktype === "Galley" && arrangementIsDefault() && sinkKeyA === "A") || (ktype === "U-Shape" && arrangementIsDefault() && sinkKeyA === "B");
+                if (halfCase) {
+                  var totWB = 0, runWB = 0, bestKB = 0, bestDB = 1e9;
+                  posS.forEach(function (ix) { totWB += skuW(sinkListA[ix]); });
+                  for (var kb = 0; kb <= posS.length; kb++) {
+                    var dB = Math.abs(runWB - totWB / 2);
+                    if (dB < bestDB) { bestDB = dB; bestKB = kb; }
+                    if (kb < posS.length) runWB += skuW(sinkListA[posS[kb]]);
+                  }
+                  tgtB = bestKB > 0 ? bestKB - 1 : 0;
+                }
+                var minFillB = (ktype === "Straight" || (ktype === "Island" && sinkKeyA === "Main")) ? 2 : 1;
+                if (posS.length >= minFillB) placedBtc = convertFillForDrawer(sinkListA, "BTC18", tgtB);
               }
-              for (var ai = 0; ai < adjKeys.length && !placedBtc; ai++) {
-                var adjList = listForAcc(adjKeys[ai]);
-                if (adjList && fillPosOf(adjList).length) placedBtc = convertFillForDrawer(adjList, "BTC18", 0);
+            }
+            if (!placedBtc && ktype === "Galley" && arrangementIsDefault()) {
+              /* Default Galley, last resort before too-tight: move the
+                 fridge off the sink run onto the range run (the range
+                 run's fills shrink by the fridge width, its wall run
+                 gains the fridge cabinet) and recompose leg A with the
+                 sink cluster + BTC18 together. */
+              var lenGAf = legAft * 12, lenGBf = legBft * 12, frInF = fridgeUnits * 3;
+              if (lenGAf > 0 && lenGBf > 0 && 30 + dwUnits * 3 + 18 <= lenGAf + 0.01 && 30 + frInF <= lenGBf + 0.01) {
+                var plAacc = null, plBacc = null;
+                planLegs.forEach(function (pl) { if (pl.key === "A") plAacc = pl; if (pl.key === "B") plBacc = pl; });
+                if (plAacc && plBacc) {
+                  plAacc.base = composeSinkBase(lenGAf, { cornerSkus: [], fridgeIn: 0, dwIn: dwUnits * 3, stoveIn: 0, btcIn: 18 });
+                  var bFillF = Math.floor((lenGBf - 30 - frInF) / 3) * 3;
+                  plBacc.base = withCT(fillForIn(bFillF));
+                  var fcabF = "W" + state.fridge + (wallH === "30" ? "15" : wallH === "36" ? "18" : "24") + "24";
+                  plAacc.wall = plAacc.wall.filter(function (s) { return s !== fcabF; });
+                  if (plBacc.wall.indexOf(fcabF) === -1) plBacc.wall.push(fcabF);
+                  plBacc.fridgeOnB = true; btcFridgeOnB = true; btcComposed = true; placedBtc = true;
+                }
               }
             }
+            if (!placedBtc) btcNoFit = true;
           }
           if (state.spice === "Yes") {
             var stoveListA = listForAcc(stoveKeyA);
@@ -3746,8 +3931,12 @@
             var pkT = state.picks;
             function legNeed(key) {
               var need = 0;
-              if (pkT.sink === key) need += 30 + dwW2;
-              if (pkT.fridge === key) need += fridgeW2 + gap2;
+              /* The sink leg is also charged the BTC18 (it is part of
+                 the sink cluster), and the fridge is charged to the
+                 leg it was finally composed on — which differs from
+                 the pick when the BTC rule relocated it. */
+              if (pkT.sink === key) need += 30 + dwW2 + (btcOn ? 18 : 0);
+              if ((btcFridgeKey || pkT.fridge) === key) need += fridgeW2 + gap2;
               if (pkT.stove === key) need += 30;
               return need;
             }
@@ -3764,7 +3953,7 @@
                  30in range zone) must fit the island length. */
               if (ktype === "L+Island") {
                 var needIslL = 0;
-                if (pkT.sink === "Island") needIslL += 30 + dwW2;
+                if (pkT.sink === "Island") needIslL += 30 + dwW2 + (btcOn ? 18 : 0);
                 if (pkT.stove === "Island") needIslL += 30;
                 if (over(needIslL, islandFt * 12)) tooTight = true;
               }
@@ -3781,7 +3970,7 @@
               if (pkT.stove !== "Island") needMain += 30;
               if (over(needMain, ftOf("Main"))) tooTight = true;
               var needIsl = 0;
-              if (pkT.sink === "Island") needIsl += 30 + dwW2;
+              if (pkT.sink === "Island") needIsl += 30 + dwW2 + (btcOn ? 18 : 0);
               if (pkT.stove === "Island") needIsl += 30;
               if (over(needIsl, islandFt * 12)) tooTight = true;
             }
@@ -3791,27 +3980,39 @@
             }
           } else if (ktype === "Straight" || ktype === "Island") {
             var lenM2 = ftOf("Main");
-            if (over(fridgeW2 + gap2 + 30 + dwW2 + 30, lenM2)) tooTight = true;
+            if (over(fridgeW2 + gap2 + 30 + dwW2 + 30 + (btcOn ? 18 : 0), lenM2)) tooTight = true;
             if (state.window === "Yes" && over(winW + 3, lenM2)) tooTight = true;
           } else if (ktype === "Galley") {
             var lenGA2 = ftOf("A"), lenGB2 = ftOf("B");
-            if (over(fridgeW2 + gap2 + 30 + dwW2, lenGA2)) tooTight = true;
-            if (over(30, lenGB2)) tooTight = true;
+            if (btcFridgeOnB) {
+              /* Galley fridge relocated for the BTC cluster: leg A is
+                 charged the cluster only, leg B the range + fridge. */
+              if (over(30 + dwW2 + (btcOn ? 18 : 0), lenGA2)) tooTight = true;
+              if (over(30 + fridgeW2 + gap2, lenGB2)) tooTight = true;
+            } else {
+              if (over(fridgeW2 + gap2 + 30 + dwW2 + (btcOn ? 18 : 0), lenGA2)) tooTight = true;
+              if (over(30, lenGB2)) tooTight = true;
+            }
             if (state.window === "Yes" && over(winW + 3, lenGA2)) tooTight = true;
           } else if (ktype === "L-Shape" || ktype === "L+Island") {
             var lenA2 = ftOf("A"), lenB2 = ftOf("B");
             var footA2b = baseFlipL ? cbOwed2 : cbW2;
             var footB2b = baseFlipL ? cbW2 : cbOwed2;
-            if (over(fridgeW2 + gap2 + 30 + (dwWrapToB ? 0 : dwW2) + footA2b, lenA2)) tooTight = true;
-            if (over(footB2b + 30 + (dwWrapToB ? dwW2 : 0), lenB2)) tooTight = true;
+            /* With BTC18 on, leg A is charged the full sink cluster
+               (corner + SB30 + DW + BTC18) plus the fridge only when
+               the fridge stayed on A; a relocated fridge is charged
+               to leg B with the range instead. Identical to the old
+               charges whenever the BTC is off and nothing moved. */
+            if (over((btcFridgeOnB ? 0 : fridgeW2 + gap2) + 30 + (dwWrapToB ? 0 : dwW2) + (btcOn ? 18 : 0) + footA2b, lenA2)) tooTight = true;
+            if (over(footB2b + 30 + (dwWrapToB ? dwW2 : 0) + (btcFridgeOnB ? fridgeW2 + gap2 : 0), lenB2)) tooTight = true;
             var uFootA2 = upperFlipL ? ucOwed2 : ucW2;
             var uFootB2 = upperFlipL ? ucW2 : ucOwed2;
-            if (over(uFootA2 + fridgeW2, lenA2)) tooTight = true;
-            if (over(uFootB2 + 30, lenB2)) tooTight = true;
+            if (over(uFootA2 + (btcFridgeOnB ? 0 : fridgeW2), lenA2)) tooTight = true;
+            if (over(uFootB2 + 30 + (btcFridgeOnB ? fridgeW2 : 0), lenB2)) tooTight = true;
             if (state.window === "Yes" && over(winW + 3, lenA2)) tooTight = true;
           } else if (ktype === "U-Shape") {
             var lenUA2 = ftOf("A"), lenUB2 = ftOf("B"), lenUC2 = ftOf("C");
-            if (over(cbW2 + cbW2 + 30 + dwW2, lenUB2)) tooTight = true;
+            if (over(cbW2 + cbW2 + 30 + dwW2 + (btcOn ? 18 : 0), lenUB2)) tooTight = true;
             if (over(cbOwed2 + fridgeW2 + gap2, lenUA2)) tooTight = true;
             if (over(cbOwed2 + 30, lenUC2)) tooTight = true;
             if (over(ucOwed2 + fridgeW2, lenUA2)) tooTight = true;
@@ -3819,6 +4020,9 @@
             if (state.window === "Yes" && over(winW + 3, lenUB2)) tooTight = true;
           }
         })();
+        /* The BTC18 could not be kept in the sink cluster in any
+           allowed configuration — too tight, never stove-side. */
+        if (btcNoFit) tooTight = true;
         var islandPriced = priceList(islandList, lowKey);
         var islandAmt = islandOn ? roundDollar(islandPriced.price) : 0;
 
