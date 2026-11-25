@@ -7539,7 +7539,14 @@
       var Y0 = Math.min(fy * y0, fy * y1), Y1 = Math.max(fy * y0, fy * y1);
       function Q(X, Y, z) { return [(X - Y) * COS30, (X + Y) * SIN30 - z]; }
       var out = "";
-      out += poly([Q(X0, Y0, z0), Q(X0, Y1, z0), Q(X0, Y1, z1), Q(X0, Y0, z1)], shade(fill, 0.9), LINE);
+      /* The three faces the viewer actually sees (in mirrored
+         view space the eye is always at +X/+Y): the X1 side face,
+         the Y1 front face and the top. This builder used to draw
+         the X0 (far) side instead of X1 — the near side face of
+         every box was never painted, so cabinets read as open
+         shells with holes, floating countertops and scattered
+         pieces instead of solid cabinets at their plan positions. */
+      out += poly([Q(X1, Y0, z0), Q(X1, Y1, z0), Q(X1, Y1, z1), Q(X1, Y0, z1)], shade(fill, 0.84), LINE);
       out += poly([Q(X0, Y1, z0), Q(X1, Y1, z0), Q(X1, Y1, z1), Q(X0, Y1, z1)], fill, LINE);
       out += poly([Q(X0, Y1, z1), Q(X1, Y1, z1), Q(X1, Y0, z1), Q(X0, Y0, z1)], shade(fill, 1.05), LINE);
       if (o.front === "door" || o.front === "split") {
@@ -7801,7 +7808,21 @@
       if (SHAKER_CODES[code]) return { style: "shaker", grain: false, rough: 0.55 };
       return { style: "slab", grain: grain, rough: grain ? 0.5 : (GLOSS_CODES[code] ? 0.16 : 0.58) };
     }
+    /* Painted texture canvases are cached per finish across scene
+       rebuilds: repainting a 1024x1024 grain (canvas strokes plus a
+       full per-pixel noise pass) on every design change was a large
+       part of the rebuild cost. The canvas is immutable once
+       painted; each rebuild wraps it in a fresh CanvasTexture. */
+    var _grainCanvasCache = {}, _stoneCanvasCache = null;
     function grainTex(hex) {
+      if (_grainCanvasCache[hex]) {
+        var tc = new THREE.CanvasTexture(_grainCanvasCache[hex]);
+        tc.wrapS = tc.wrapT = THREE.RepeatWrapping;
+        tc.colorSpace = THREE.SRGBColorSpace;
+        var rdc = renderer3();
+        if (rdc) tc.anisotropy = Math.min(16, rdc.capabilities.getMaxAnisotropy());
+        return tc;
+      }
       /* High-resolution natural wood grain (1024²): long wavy grain
          fibres with varied tone and width, a few cathedral arcs and
          mineral streaks, and fine speckle — no straight stripes and
@@ -7869,6 +7890,7 @@
         dd[i] += nz; dd[i + 1] += nz; dd[i + 2] += nz;
       }
       g.putImageData(id, 0, 0);
+      _grainCanvasCache[hex] = c;
       var t = new THREE.CanvasTexture(c);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.colorSpace = THREE.SRGBColorSpace;
@@ -7877,6 +7899,14 @@
       return t;
     }
     function stoneTex() {
+      if (_stoneCanvasCache) {
+        var ts = new THREE.CanvasTexture(_stoneCanvasCache);
+        ts.wrapS = ts.wrapT = THREE.RepeatWrapping; ts.repeat.set(2, 1);
+        ts.colorSpace = THREE.SRGBColorSpace;
+        var rds = renderer3();
+        if (rds) ts.anisotropy = Math.min(16, rds.capabilities.getMaxAnisotropy());
+        return ts;
+      }
       /* Quartz/stone worktop at 1024²: soft mineral clouding plus
          branching grey veins that fork like real stone. */
       var S = 1024;
@@ -7915,6 +7945,7 @@
       }
       for (i = 0; i < 6; i++) vein(rnd() * S, rnd() * S, rnd() * 6.28, 190 + rnd() * 260, 0.8 + rnd() * 1.1, 0.30);
       for (i = 0; i < 5; i++) vein(rnd() * S, rnd() * S, rnd() * 6.28, 120 + rnd() * 160, 0.5, 0.20);
+      _stoneCanvasCache = c;
       var t = new THREE.CanvasTexture(c);
       t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1);
       t.colorSpace = THREE.SRGBColorSpace;
@@ -7998,21 +8029,33 @@
        front's mapping, so grain runs continuously across frame and
        centre panel, as on the real door. */
     var FIELD_W = 24, FIELD_H = 27;
+    /* Variant cache — kept in a WeakMap, NEVER in mat.userData.
+       three r186's Material.copy() (used by clone()) deep-copies
+       userData via JSON.parse(JSON.stringify(userData)); storing
+       cloned materials there made every clone serialize every
+       previously cached variant — and JSON.stringify(material)
+       runs Material.toJSON(), which PNG-encodes the 1024x1024
+       grain canvas per texture via Source.toJSON/getDataURL.
+       The cost exploded combinatorially with door count (multi-
+       second blocks, then "Invalid string length"), freezing the
+       page and throwing mount3D into the SVG fallback. */
+    var _texVarCache = new WeakMap();
     function texVariant(mat, pw, ph, px, py) {
       if (!mat || !mat.map) return mat;
-      mat.userData = mat.userData || {};
+      var per = _texVarCache.get(mat);
+      if (!per) { per = new Map(); _texVarCache.set(mat, per); }
       var key = "tv" + Math.round(pw * 2) + "_" + Math.round(ph * 2) + "_" + Math.round(px * 2) + "_" + Math.round(py * 2);
-      if (!mat.userData[key]) {
-        if (Object.keys(mat.userData).length > 48) return mat;
+      if (!per.has(key)) {
+        if (per.size > 48) return mat;
         var t = mat.map.clone();
         t.needsUpdate = true;
         t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.repeat.set(Math.max(0.02, pw / FIELD_W), Math.max(0.02, ph / FIELD_H));
         t.offset.set(px / FIELD_W, py / FIELD_H);
         var m2 = mat.clone(); m2.map = t; m2.bumpMap = t;
-        mat.userData[key] = m2;
+        per.set(key, m2);
       }
-      return mat.userData[key];
+      return per.get(key);
     }
     function doorFront3(w, h, mat, style) {
       var g = new THREE.Group();
@@ -8638,30 +8681,36 @@
     _logoURI = im ? (im.getAttribute("src") || "") : "";
     return _logoURI;
   }
-  function sheetFrame(sheetName, innerSvg, vb) {
+  /* Sheet frame: fixed 1200x850 by default; a sheet whose content
+     runs long (the item list) passes a taller H and the frame —
+     border, inner viewport and title strip — grows with it, so
+     content is never clipped or overlapped by the strip. */
+  function sheetFrame(sheetName, innerSvg, vb, H) {
+    H = H || 850;
+    var sY = H - 82;
     var cells = [
       { x: 228, w: 330, label: "Design", value: designName() },
       { x: 576, w: 240, label: "Sheet", value: sheetName },
       { x: 834, w: 168, label: "Generated", value: dateStr() },
       { x: 1020, w: 148, label: "Units", value: "All dimensions in inches" }
     ];
-    var strip = '<rect x="10" y="768" width="1180" height="72" fill="#212529"/>';
+    var strip = '<rect x="10" y="' + sY + '" width="1180" height="72" fill="#212529"/>';
     var lg = logoURI();
     if (lg) {
       /* the logo plate: the original wordmark image on white, so
          it reads exactly as the file does on the dark strip */
-      strip += '<rect x="26" y="779" width="172" height="50" fill="#FFFFFF"/>';
-      strip += '<image x="34" y="784" width="156" height="44" preserveAspectRatio="xMidYMid meet" href="' + lg + '" xlink:href="' + lg + '"/>';
+      strip += '<rect x="26" y="' + (sY + 11) + '" width="172" height="50" fill="#FFFFFF"/>';
+      strip += '<image x="34" y="' + (sY + 16) + '" width="156" height="44" preserveAspectRatio="xMidYMid meet" href="' + lg + '" xlink:href="' + lg + '"/>';
     }
     cells.forEach(function (c, i) {
-      strip += '<line x1="' + (c.x - 12) + '" y1="778" x2="' + (c.x - 12) + '" y2="830" stroke="#495057" stroke-width="0.8"/>';
-      strip += '<text x="' + c.x + '" y="792" font-size="9.5" font-weight="700" letter-spacing="1.4" fill="#F97B3F">' + esc(c.label.toUpperCase()) + "</text>";
-      strip += '<text x="' + c.x + '" y="818" font-size="14.5" font-weight="700" fill="#FFFFFF">' + esc(c.value) + "</text>";
+      strip += '<line x1="' + (c.x - 12) + '" y1="' + (sY + 10) + '" x2="' + (c.x - 12) + '" y2="' + (sY + 62) + '" stroke="#495057" stroke-width="0.8"/>';
+      strip += '<text x="' + c.x + '" y="' + (sY + 24) + '" font-size="9.5" font-weight="700" letter-spacing="1.4" fill="#F97B3F">' + esc(c.label.toUpperCase()) + "</text>";
+      strip += '<text x="' + c.x + '" y="' + (sY + 50) + '" font-size="14.5" font-weight="700" fill="#FFFFFF">' + esc(c.value) + "</text>";
     });
-    return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 850" role="img" aria-label="' + esc(sheetName) + '" font-family="-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif">'
-      + '<rect x="0" y="0" width="1200" height="850" fill="#FFFFFF"/>'
-      + '<rect x="10" y="10" width="1180" height="830" fill="none" stroke="#111" stroke-width="2"/>'
-      + '<svg x="30" y="26" width="1140" height="724" viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet">' + innerSvg + "</svg>"
+    return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 ' + H + '" role="img" aria-label="' + esc(sheetName) + '" font-family="-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif">'
+      + '<rect x="0" y="0" width="1200" height="' + H + '" fill="#FFFFFF"/>'
+      + '<rect x="10" y="10" width="1180" height="' + (H - 20) + '" fill="none" stroke="#111" stroke-width="2"/>'
+      + '<svg x="30" y="26" width="1140" height="' + (H - 126) + '" viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet">' + innerSvg + "</svg>"
       + strip + "</svg>";
   }
   function txt(x, y, str, attrs, rot) {
@@ -8839,15 +8888,28 @@
       function addBlind(list, sku, atStart, bw) {
         if (bw > 0.5) list.push({ kind: "blind", sku: sku, s: atStart ? 0 : leg.len - bw, w: bw });
       }
+      /* The corner's zone on the ADJOINING leg — the width its
+         blind portion must draw and dimension as, so the cabinets
+         tile up to it and the chain sums to the leg total. These
+         are the composer's own corner offsets (baseCornerOff /
+         upperCornerOff): a base corner reserves 26in on the next
+         leg for BBC (24 blind + 2 clearance) and its full width
+         for BLS/BER (33); a wall corner reserves its full per-leg
+         width for WDC/WER (24 — the WDC2430 is 24 wide on BOTH
+         legs) and 14 for WBC (12 blind + 2 clearance). The old
+         w-24 / w-12 arithmetic drew BBC at 18 and WDC at 12,
+         leaving an unexplained gap in the chain beside them. */
+      function blindBaseW(sku, w) { return /^BBC/.test(sku || "") ? 26 : w; }
+      function blindWallW(sku, w) { return /^WBC/.test(sku || "") ? 14 : w; }
       if (idx > 0) {
         var pl = legs[order[idx - 1]];
-        var pc = cornerOf(pl, "base"); if (pc && pc.s + pc.w >= pl.len - 0.01) addBlind(baseDraw, pc.sku, true, pc.w - 24);
-        var pu = cornerOf(pl, "wall"); if (pu && pu.s + pu.w >= pl.len - 0.01) addBlind(upperDraw, pu.sku, true, pu.w - 12);
+        var pc = cornerOf(pl, "base"); if (pc && pc.s + pc.w >= pl.len - 0.01) addBlind(baseDraw, pc.sku, true, blindBaseW(pc.sku, pc.w));
+        var pu = cornerOf(pl, "wall"); if (pu && pu.s + pu.w >= pl.len - 0.01) addBlind(upperDraw, pu.sku, true, blindWallW(pu.sku, pu.w));
       }
       if (idx < order.length - 1) {
         var nl = legs[order[idx + 1]];
-        var nc = cornerOf(nl, "base"); if (nc && nc.s <= (nl.off || 0) + 0.01) addBlind(baseDraw, nc.sku, false, nc.w - 24);
-        var nu = cornerOf(nl, "wall"); if (nu && nu.s <= (nl.off || 0) + 0.01) addBlind(upperDraw, nu.sku, false, nu.w - 12);
+        var nc = cornerOf(nl, "base"); if (nc && nc.s <= (nl.off || 0) + 0.01) addBlind(baseDraw, nc.sku, false, blindBaseW(nc.sku, nc.w));
+        var nu = cornerOf(nl, "wall"); if (nu && nu.s <= (nl.off || 0) + 0.01) addBlind(upperDraw, nu.sku, false, blindWallW(nu.sku, nu.w));
       }
       baseDraw.sort(function (a, b) { return a.s - b.s; });
       upperDraw.sort(function (a, b) { return a.s - b.s; });
@@ -9138,72 +9200,6 @@
     return sheetFrame(name, body, vb);
   }
 
-  function sheetWorktop() {
-    var runs = collectRuns();
-    var body = "", bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
-    runs.forEach(function (run) {
-      var cSegs = run.baseSegs.filter(function (sg) { return ["cab", "sink", "dw", "range", "ct", "corner"].indexOf(sg.kind) >= 0; });
-      if (!cSegs.length) return;
-      var rc = rectNorm(segRectFor(run.leg, Math.min.apply(null, cSegs.map(function (sg) { return sg.s; })) - 0.75, 1, 25.5));
-      bx0 = Math.min(bx0, rc.x0); by0 = Math.min(by0, rc.y0); bx1 = Math.max(bx1, rc.x1); by1 = Math.max(by1, rc.y1);
-      cSegs.forEach(function (sg) { var r2 = rectNorm(segRectFor(run.leg, sg.s, sg.w, 24)); bx0 = Math.min(bx0, r2.x0); by0 = Math.min(by0, r2.y0); bx1 = Math.max(bx1, r2.x1); by1 = Math.max(by1, r2.y1); });
-    });
-    if (bx0 > bx1) return sheetFrame("Worktop plan", '<text x="0" y="0" font-size="14" fill="#111">No worktop in this design</text>', "-60 -60 120 120");
-    bx0 -= 50; by0 -= 50; bx1 += 50; by1 += 58;
-    runs.forEach(function (run) {
-      var leg = run.leg, isIsl = run.key === "Island";
-      var cSegs = run.baseSegs.filter(function (sg) { return ["cab", "sink", "dw", "range", "ct", "corner"].indexOf(sg.kind) >= 0; });
-      if (!cSegs.length) return;
-      run.baseSegs.forEach(function (sg) {
-        var rc = segRectFor(leg, sg.s, sg.w, 24);
-        body += '<rect x="' + n1(rc.x) + '" y="' + n1(rc.y) + '" width="' + n1(rc.w) + '" height="' + n1(rc.h) + '" fill="none" stroke="#C9CDD2" stroke-width="0.7"/>';
-      });
-      var s0 = Math.min.apply(null, cSegs.map(function (sg) { return sg.s; })) - 0.75;
-      var s1 = Math.max.apply(null, cSegs.map(function (sg) { return sg.s + sg.w; })) + 0.75;
-      /* Slabs are DIVIDED at a free-standing range: no worktop
-         crosses the 30" range opening. A cooktop does NOT divide
-         the slab — it sits in a cutout (drawn below). */
-      var slabTiles = cSegs.filter(function (sg) { return sg.kind !== "range"; }).slice().sort(function (a, b) { return a.s - b.s; });
-      var slabs = [];
-      slabTiles.forEach(function (sg) {
-        var lastS = slabs[slabs.length - 1];
-        if (lastS && sg.s <= lastS[1] + 0.1) lastS[1] = Math.max(lastS[1], sg.s + sg.w);
-        else slabs.push([sg.s, sg.s + sg.w]);
-      });
-      slabs.forEach(function (sp) {
-        var corners = [pointAt(leg, sp[0] - 0.75, -0.75), pointAt(leg, sp[1] + 0.75, -0.75), pointAt(leg, sp[1] + 0.75, 24.75), pointAt(leg, sp[0] - 0.75, 24.75)];
-        body += '<polygon points="' + corners.map(function (p) { return n1(p.x) + "," + n1(p.y); }).join(" ") + '" fill="#F3EFE8" stroke="#111" stroke-width="1.1"/>';
-      });
-      run.baseSegs.forEach(function (sg) {
-        if (sg.kind === "sink") {
-          var c = [pointAt(leg, sg.s + 2.5, 3.5), pointAt(leg, sg.s + sg.w - 2.5, 3.5), pointAt(leg, sg.s + sg.w - 2.5, 20.5), pointAt(leg, sg.s + 2.5, 20.5)];
-          body += '<polygon points="' + c.map(function (p) { return n1(p.x) + "," + n1(p.y); }).join(" ") + '" fill="#FFFFFF" stroke="#111" stroke-width="0.9"/>';
-          var cc = pointAt(leg, sg.s + sg.w / 2, 12);
-          body += txt(cc.x, cc.y + 1.6, "SINK CUTOUT", 'text-anchor="middle" font-size="4.4" font-weight="700" fill="#111"', (leg.frame === "VR" || leg.frame === "VL") ? -90 : 0);
-        }
-        if (sg.kind === "range" || sg.kind === "ct") {
-          var isCt = sg.kind === "ct";
-          var c2 = [pointAt(leg, sg.s + 1, 1.5), pointAt(leg, sg.s + sg.w - 1, 1.5), pointAt(leg, sg.s + sg.w - 1, 22.5), pointAt(leg, sg.s + 1, 22.5)];
-          body += '<polygon points="' + c2.map(function (p) { return n1(p.x) + "," + n1(p.y); }).join(" ") + '" fill="' + (isCt ? "#FFFFFF" : "#2E3134") + '" stroke="#111" stroke-width="0.8"/>';
-          [[0.32, 7], [0.68, 7], [0.32, 17], [0.68, 17]].forEach(function (b, bi) {
-            var bp = pointAt(leg, sg.s + sg.w * b[0], b[1]);
-            body += '<circle cx="' + n1(bp.x) + '" cy="' + n1(bp.y) + '" r="' + (bi % 2 ? 3.4 : 4.4) + '" fill="none" stroke="' + (isCt ? "#111" : "rgba(255,255,255,0.75)") + '" stroke-width="0.8"/>';
-          });
-          var lc = pointAt(leg, sg.s + sg.w / 2, 12);
-          body += txt(lc.x, lc.y + 1.6, isCt ? "COOKTOP CUTOUT" : "RANGE — NO WORKTOP", 'text-anchor="middle" font-size="4.4" font-weight="700" fill="' + (isCt ? "#111" : "#FFFFFF") + '"', (leg.frame === "VR" || leg.frame === "VL") ? -90 : 0);
-        }
-      });
-      /* each slab piece dimensioned separately (length x depth) */
-      slabs.forEach(function (sp) {
-        body += dimChainH(leg, [{ s: sp[0] - 0.75, w: (sp[1] - sp[0]) + 1.5, label: fmtFtIn((sp[1] - sp[0]) + 1.5) }], isIsl ? 38 : -15, 5.4, true);
-      });
-      var dc = pointAt(leg, s1 + 3, 12);
-      body += txt(dc.x, dc.y, "25\u00BD\u2033 deep", 'text-anchor="middle" font-size="4.8" font-weight="600" fill="#111"', (leg.frame === "VR" || leg.frame === "VL") ? 0 : -90);
-    });
-    var vb = n1(bx0) + " " + n1(by0) + " " + n1(bx1 - bx0) + " " + n1(by1 - by0);
-    return sheetFrame("Worktop plan", body, vb);
-  }
-
   function skuDescribe(sku) {
     var m;
     if (sku === "FRIDGE") return "Refrigerator — opening (appliance by others)";
@@ -9329,14 +9325,22 @@
       y += 16;
     });
 
-    /* ---- estimate summary block ---- */
-    var sy = 664;
+    /* ---- estimate summary block ----
+       The band sits BELOW the last table row in normal flow (its y
+       comes from the table cursor), never at a fixed position: a
+       long item list pushes it down, and the sheet itself grows
+       (sheetFrame height) so the band and the title strip below it
+       never overlap a row. It used to be pinned at y=664 while the
+       table could run past it — the DW/STOVE rows ended up hidden
+       behind the band. */
+    var sy = Math.max(664, y + 14);
+    var sheetH = Math.max(850, sy + 76 + 96);
     body += '<rect x="40" y="' + sy + '" width="1120" height="76" fill="#212529"/>';
     body += '<rect x="40" y="' + sy + '" width="10" height="76" fill="#F97B3F"/>';
     body += txt(70, sy + 30, "Cabinets subtotal " + money(r.subtotal) + (r.discPct > 0 ? "   ·   discount " + (Math.round(r.discPct * 100) / 100) + "%: " + money(r.discount) : "") + (r.asmAmt > 0 ? "   ·   assembly " + money(r.asmAmt) : ""), 'font-size="14.5" font-weight="600" fill="#FFFFFF"');
     body += txt(70, sy + 58, "NET TOTAL: " + money(r.net) + (r.hst ? "   ·   TOTAL with HST: " + money(r.totalWithHst) : ""), 'font-size="19" font-weight="800" fill="#F97B3F"');
     body += txt(1160, sy + 58, "Openings are appliance spaces — not cabinets, not priced.", 'text-anchor="end" font-size="11" fill="#ADB5BD"');
-    return sheetFrame("Item list & legend", body, "0 0 1200 850");
+    return sheetFrame("Item list & legend", body, "0 0 1200 " + sheetH, sheetH);
   }
 
   /* ---------------- gallery + lightbox ---------------- */
@@ -9348,7 +9352,6 @@
       var name = run.key === "Island" ? "Elevation — Island" : run.key === "Main" ? "Elevation — Main run" : "Elevation — Wall " + run.key;
       views.push({ title: name, sub: "Detailed drawing", svg: sheetElevation(run), is3d: false });
     });
-    views.push({ title: "Worktop plan", sub: "2D plan · cutouts", svg: sheetWorktop(), is3d: false });
     views.push({ title: "Item list & legend", sub: "Every cabinet in the design", svg: sheetItems(), is3d: false });
     views3().forEach(function (v) {
       views.push({ title: v.label, sub: v.key === "P" ? "3D render of this design" : "3D elevation · straight-on", svg: build3D(v.key), is3d: true, png: _png3[v.key] || null });
